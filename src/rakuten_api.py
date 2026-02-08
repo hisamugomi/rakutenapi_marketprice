@@ -44,7 +44,7 @@ def process_rakuten_json(json_data):
 
 API_URL = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601"
 
-def fetch_rakuten_items(keyword, total_pages = 2):
+def fetch_rakuten_items(keyword, total_pages = 30):
     """
     Fetches used computer items from Rakuten Ichiba API.
     """

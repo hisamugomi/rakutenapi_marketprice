@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 from src.rakuten_api import fetch_rakuten_items
 from src.processor import process_results
+import mojimoji
 
 from src.cleanzentohan import clean_japanese_specs
-from src.aiprocess import extract_specs
+# from src.aiprocess import extract_specs
 from time import sleep
 from datetime import datetime
 
@@ -30,38 +31,25 @@ if search_button:
 
         results_list = []
 
+        final_df=pd.DataFrame
+
         print(raw_data)
         
         items = raw_data
 
-        for index, row in items.iterrows():
-        # We combine Title and Description for the AI to have maximum context
-            combined_text = f"Product: {row['itemName']} | Description: {row['itemCaption']}"
-            
+        items["combined"] = items["itemName"] + items["itemCaption"]
 
-            # Call the Gemini/LangChain function
-            clean_combined_text = clean_japanese_specs(combined_text)
-            specs_dict = extract_specs(clean_combined_text)
-            results_list.append(specs_dict)
-            
-            # Senior Tip: Progress bar & Rate Limiting
-            if index % 10 == 0:
-                print(f"Processed {index}/{len(items)} items...")
-            
-            # Free tier Gemini usually needs a tiny breather
-            sleep(0.5)
+        items["combined"] = items["combined"].apply(mojimoji.zen_to_han)
 
         # 2. Convert the list of dicts into a new "Specs" DataFrame
-        specs_df = pd.DataFrame(results_list)
 
         # 3. Merge side-by-side
         # We use axis=1 to add columns, and reset_index to ensure rows align perfectly
-        final_df = pd.concat([df.reset_index(drop=True), specs_df.reset_index(drop=True)], axis=1)
-
+        final_df = items
 
 
         try:
-            final_df.to_csv(f"rakutenapidata_{datetime}.csv", index = False)
+            final_df.to_csv(f"rakutenapidata_{query}{datetime}.csv", index = False)
             
             # Display summary
             st.success(f"Found {len(final_df)} items matching your criteria.")
