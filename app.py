@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from src.rakuten_api import fetch_rakuten_items
 from src.processor import process_results
+# from src.pckoboscrape import KoboScraperService
 import mojimoji
 
 from src.cleanzentohan import clean_japanese_specs
@@ -25,6 +26,12 @@ with st.sidebar:
     search_button = st.button("Search Rakuten")
 
 # Main Logic
+
+# scraper = KoboScraperService()
+# if st.button("Scrape PC Kobo"):
+#     df = scraper.fetch_items("ThinkPad", total_pages=3)
+#     st.dataframe(df)
+
 if search_button:
     with st.spinner("Fetching listings..."):
         raw_data = fetch_rakuten_items(query)

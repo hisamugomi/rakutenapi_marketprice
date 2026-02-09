@@ -1,5 +1,5 @@
-from .base import BaseScraper
-from .spec_extractor import SpecExtractor
+# from .base import BaseScraper
+from spec_extractor import SpecExtractor
 from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
 import re
