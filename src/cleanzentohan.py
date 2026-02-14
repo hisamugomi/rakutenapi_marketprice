@@ -1,10 +1,10 @@
-import jaconv
+import mojimoji
 import re
 
 def clean_japanese_specs(text):
     # 1. Convert Full-width to Half-width (１６ -> 16, ｉ７ -> i7)
     # kana=False keeps Katakana as is, but converts numbers and letters
-    text = jaconv.z2h(text, kana=False, digit=True, ascii=True)
+    text = mojimoji.zen_to_han(text)
     
     # 2. Lowercase for consistency
     text = text.lower()

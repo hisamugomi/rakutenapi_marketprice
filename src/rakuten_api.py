@@ -4,7 +4,7 @@ import time
 import json
 import csv
 import pandas as pd
-
+import os
 
 # Rakuten API Endpoint
 
@@ -44,7 +44,7 @@ def process_rakuten_json(json_data):
 
 API_URL = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601"
 
-def fetch_rakuten_items(keyword, total_pages = 2):
+def fetch_rakuten_items(keyword, total_pages = 30):
     """
     Fetches used computer items from Rakuten Ichiba API.
     """
@@ -53,7 +53,8 @@ def fetch_rakuten_items(keyword, total_pages = 2):
 
     for page in range(1, total_pages + 1):
         params = {
-            "applicationId": st.secrets["RAKUTEN_APP_ID"],
+            # "applicationId": st.secrets["RAKUTEN_APP_ID"],
+            "applicationId": os.environ.get("RAKUTEN_APP_ID"),
             "format": "json",
             "keyword": keyword,
             "page": page,
@@ -62,10 +63,26 @@ def fetch_rakuten_items(keyword, total_pages = 2):
             "hits": 30,           # Items per page (max 30)
             "sort": "-itemPrice", # Sort by descending price (adjustable)
         }
+
+        # params = {
+        #     "applicationId": st.secrets["RAKUTEN_APP_ID"],
+        #     "format": "json",
+        #     "keyword": "Lenovo L590 -トナー -互換", # Note the negative keywords to block toner/compatibles
+        #     "genreId": 100026,                  # Try 110101 for Laptops or 213313 for Used specifically
+
+        #     "usedFlag": 1,
+        #     "hits": 30,
+        #     "sort": "+itemPrice", 
+        # }
+
         
         # Include affiliate ID if it exists in secrets
-        if "RAKUTEN_AFFILIATE_ID" in st.secrets:
-            params["affiliateId"] = st.secrets["RAKUTEN_AFFILIATE_ID"]
+        
+        params["affiliateId"] = os.environ.get("RAKUTEN_AFFILIATE_ID")
+
+
+        # if "RAKUTEN_AFFILIATE_ID" in st.secrets:
+        #     params["affiliateId"] = st.secrets["RAKUTEN_AFFILIATE_ID"]
 
         try:
             response = requests.get(API_URL, params=params, timeout=TIMEOUT)
