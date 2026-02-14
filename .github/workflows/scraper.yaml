@@ -2,7 +2,7 @@ name: Rust-Fast PC Scraper
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 15 * * *'
   workflow_dispatch:
 
 jobs:
