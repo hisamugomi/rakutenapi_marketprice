@@ -1,4 +1,3 @@
-import streamlit as st
 import pandas as pd
 import polars as pl
 from src.rakuten_api import fetch_rakuten_items
