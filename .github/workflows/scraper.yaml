@@ -20,9 +20,13 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Initialize venv
+        # uv sync is faster than pip install
+        run: uv venv
+
       - name: Install dependencies
         # uv sync is faster than pip install
-        run: uv pip install polars supabase requests
+        run: uv pip install polars supabase requests mojimoji pytz
 
       - name: Run Scraper
         env:
