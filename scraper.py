@@ -6,7 +6,7 @@ from src.processor import process_results
 from src.savetosupabase import save_to_supabase
 # from src.pckoboscrape import KoboScraperService
 import mojimoji
-
+import os
 from src.cleanzentohan import clean_japanese_specs
 # from src.aiprocess import extract_specs
 from time import sleep
@@ -23,14 +23,16 @@ current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 def run_scraper():
     # if "SUPABASE_URL" in st.secrets:
 
+    url = os.environ.get("SUPABASE_URL")
+    servicerole = os.environ.get("SERVICEROLE")    
 
-    if "SUPABASE_URL" in st.secrets:
-        url = st.secrets["SUPABASE_URL"]
+    # if "SUPABASE_URL" in st.secrets:
+    #     url = st.secrets["SUPABASE_URL"]
 
-    if "SUPABASE_KEY" in st.secrets:
-        key = st.secrets["SUPABASE_KEY"]
-    if "servicerole" in st.secrets:
-        servicerole = st.secrets["servicerole"]
+    # if "SUPABASE_KEY" in st.secrets:
+    #     key = st.secrets["SUPABASE_KEY"]
+    # if "servicerole" in st.secrets:
+    #     servicerole = st.secrets["servicerole"]
     supabase: Client = create_client(url, servicerole)
 
 
