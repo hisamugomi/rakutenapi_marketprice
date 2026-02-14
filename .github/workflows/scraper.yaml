@@ -27,6 +27,6 @@ jobs:
       - name: Run Scraper
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_KEY: ${{ secrets.SERVICEROLE }}
           RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
-        run: uv run src/rakuten_api.py
+        run: uv run scraper.py
