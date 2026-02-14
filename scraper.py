@@ -1,12 +1,12 @@
-# import pandas as pd
+import pandas as pd
 import polars as pl
 from src.rakuten_api import fetch_rakuten_items
-from src.processor import process_results
-from src.savetosupabase import save_to_supabase
+# from src.processor import process_results
+# from src.savetosupabase import save_to_supabase
 # from src.pckoboscrape import KoboScraperService
 import mojimoji
 import os
-from src.cleanzentohan import clean_japanese_specs
+# from src.cleanzentohan import clean_japanese_specs
 # from src.aiprocess import extract_specs
 from time import sleep
 from datetime import datetime
