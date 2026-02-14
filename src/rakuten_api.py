@@ -62,6 +62,18 @@ def fetch_rakuten_items(keyword, total_pages = 30):
             "hits": 30,           # Items per page (max 30)
             "sort": "-itemPrice", # Sort by descending price (adjustable)
         }
+
+        # params = {
+        #     "applicationId": st.secrets["RAKUTEN_APP_ID"],
+        #     "format": "json",
+        #     "keyword": "Lenovo L590 -トナー -互換", # Note the negative keywords to block toner/compatibles
+        #     "genreId": 100026,                  # Try 110101 for Laptops or 213313 for Used specifically
+
+        #     "usedFlag": 1,
+        #     "hits": 30,
+        #     "sort": "+itemPrice", 
+        # }
+
         
         # Include affiliate ID if it exists in secrets
         if "RAKUTEN_AFFILIATE_ID" in st.secrets:

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from src.rakuten_api import fetch_rakuten_items
 from src.processor import process_results
+from src.savetosupabase import save_to_supabase
 # from src.pckoboscrape import KoboScraperService
 import mojimoji
 
@@ -22,7 +23,7 @@ st.markdown("Find the best deals on used PCs via the Rakuten API.")
 # Sidebar Filters
 with st.sidebar:
     st.header("Search Filters")
-    query = st.text_input("Search Keyword (e.g., MacBook, ThinkPad)", value="Laptop")
+    query = st.text_input("Search Keyword (e.g., MacBook, ThinkPad)", value="L590 -lenovo")
     search_button = st.button("Search Rakuten")
 
 # Main Logic
@@ -56,6 +57,9 @@ if search_button:
 
 
         try:
+
+            # save_to_supabase(final_df)
+
             final_df.to_csv(f"rakutenapidata_{query}{datetime}.csv", index = False)
             
             # Display summary
