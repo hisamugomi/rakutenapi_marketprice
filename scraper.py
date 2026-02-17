@@ -72,7 +72,8 @@ def run_scraper():
         # .to_dict('records') converts the DataFrame into the JSON list Supabase needs
         # data_list = raw_data.to_dict(orient='records')
         
-        extracteddata = extract_specs(raw_data, text_column="combined", price_column="itemPrice", name_column="itemName")
+        extracteddata = extract_specs(raw_data, text_col="combined", price_col="itemPrice", name_column="itemName")
+        
 
 
         try:
