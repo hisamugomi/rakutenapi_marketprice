@@ -13,6 +13,7 @@ from datetime import datetime
 import pytz
 import supabase
 from supabase import create_client
+from src.extract_specs_1 import extract_specs
 
 
 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -57,7 +58,10 @@ def run_scraper():
 
         # 2. Data Cleaning & Metadata Addition
         # Clean Japanese text (Zen-to-Han) on the 'itemName' or a 'combined' column
-        raw_data["itemName"] = raw_data["itemName"].apply(mojimoji.zen_to_han)
+
+        raw_data["combined"] = raw_data["itemName"] + raw_data["itemCaption"]
+
+        raw_data["combined"] = raw_data["combined"].apply(mojimoji.zen_to_han)
         
         # Add the 'scraped_at' timestamp and 'is_active' flag
         raw_data["scraped_at"] = now_jst
@@ -66,13 +70,16 @@ def run_scraper():
 
         # 3. UPSERT to Supabase
         # .to_dict('records') converts the DataFrame into the JSON list Supabase needs
-        data_list = raw_data.to_dict(orient='records')
+        # data_list = raw_data.to_dict(orient='records')
         
+        extracteddata = extract_specs(raw_data, text_column="combined", price_column="itemPrice", name_column="itemName")
+
+
         try:
             # We use 'itemCode' (Rakuten's unique ID) to prevent duplicates
-            supabase.table("rakuten_table").insert(data_list).execute()
+            supabase.table("rakuten_table").insert(extracteddata).execute()
 
-            print(f"Successfully synced {len(data_list)} items for: {query}")
+            print(f"Successfully synced {len(extracteddata)} items for: {query}")
 
         except Exception as e:
             print(f"Error saving to Supabase: {e}")
