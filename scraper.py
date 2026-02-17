@@ -23,8 +23,8 @@ current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 def run_scraper():
     # if "SUPABASE_URL" in st.secrets:
 
-    # url = os.environ.get("SUPABASE_URL")
-    # servicerole = os.environ.get("SERVICEROLE")    
+    url = os.environ.get("SUPABASE_URL")
+    servicerole = os.environ.get("SERVICEROLE")    
 
     # if "SUPABASE_URL" in st.secrets:
     #     url = st.secrets["SUPABASE_URL"]
@@ -33,7 +33,7 @@ def run_scraper():
     #     key = st.secrets["SUPABASE_KEY"]
     # if "servicerole" in st.secrets:
     #     servicerole = st.secrets["servicerole"]
-    # supabase: Client = create_client(url, servicerole)
+    supabase: Client = create_client(url, servicerole)
 
 
     querys = [
