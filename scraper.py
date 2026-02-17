@@ -36,8 +36,8 @@ def run_scraper():
 
 
     querys = [
-        # "L580 -lenovo", 
-        # "L590 -lenovo", 
+        "L580 -lenovo", 
+        "L590 -lenovo", 
         "L390 -lenovo", 
         # "L390", 
         # "L580", 
