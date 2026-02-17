@@ -23,8 +23,8 @@ current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 def run_scraper():
     # if "SUPABASE_URL" in st.secrets:
 
-    url = os.environ.get("SUPABASE_URL")
-    servicerole = os.environ.get("SERVICEROLE")    
+    # url = os.environ.get("SUPABASE_URL")
+    # servicerole = os.environ.get("SERVICEROLE")    
 
     # if "SUPABASE_URL" in st.secrets:
     #     url = st.secrets["SUPABASE_URL"]
@@ -33,7 +33,7 @@ def run_scraper():
     #     key = st.secrets["SUPABASE_KEY"]
     # if "servicerole" in st.secrets:
     #     servicerole = st.secrets["servicerole"]
-    supabase: Client = create_client(url, servicerole)
+    # supabase: Client = create_client(url, servicerole)
 
 
     querys = [
@@ -76,13 +76,13 @@ def run_scraper():
         extracteddata = extract_specs(raw_data_pl, text_col="combined", price_col="itemPrice", name_col="itemName")
 
         extracteddatapd = extracteddata.to_pandas()
-        
+        data_list = extracteddatapd.to_dict(orient='records')
 
         try:
             # We use 'itemCode' (Rakuten's unique ID) to prevent duplicates
-            supabase.table("rakuten_table").insert(extracteddatapd).execute()
+            supabase.table("rakuten_table").insert(data_list).execute()
 
-            print(f"Successfully synced {len(extracteddatapd)} items for: {query}")
+            print(f"Successfully synced {len(data_list)} items for: {query}")
 
 
         except Exception as e:
