@@ -75,14 +75,15 @@ def run_scraper():
         raw_data_pl = pl.from_pandas(raw_data)
         extracteddata = extract_specs(raw_data_pl, text_col="combined", price_col="itemPrice", name_col="itemName")
 
-        extracteddatapd = pl.to_pandas(extracteddata)
+        extracteddatapd = extracteddata.to_pandas()
+        
 
         try:
             # We use 'itemCode' (Rakuten's unique ID) to prevent duplicates
             supabase.table("rakuten_table").insert(extracteddatapd).execute()
 
             print(f"Successfully synced {len(extracteddatapd)} items for: {query}")
-            
+
 
         except Exception as e:
             print(f"Error saving to Supabase: {e}")
