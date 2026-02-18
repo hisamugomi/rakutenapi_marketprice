@@ -14,7 +14,7 @@ import pytz
 import supabase
 from supabase import create_client
 from src.extract_specs_1 import extract_specs
-
+import streamlit as st
 
 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -33,6 +33,7 @@ def run_scraper():
     #     key = st.secrets["SUPABASE_KEY"]
     # if "servicerole" in st.secrets:
     #     servicerole = st.secrets["servicerole"]
+
     supabase: Client = create_client(url, servicerole)
 
 
@@ -77,6 +78,8 @@ def run_scraper():
 
         extracteddatapd = extracteddata.to_pandas()
         data_list = extracteddatapd.to_dict(orient='records')
+
+        print(extracteddatapd.columns)
 
         try:
             # We use 'itemCode' (Rakuten's unique ID) to prevent duplicates
