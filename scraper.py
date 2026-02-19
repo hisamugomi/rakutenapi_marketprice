@@ -69,11 +69,15 @@ def run_scraper():
         raw_data["is_active"] = True
         raw_data["search_query"] = query # Helps you filter in Streamlit later
 
+
         # 3. UPSERT to Supabase
         # .to_dict('records') converts the DataFrame into the JSON list Supabase needs
         # data_list = raw_data.to_dict(orient='records')
         
         raw_data_pl = pl.from_pandas(raw_data)
+
+        raw_data_pl.filter(pl.col("genreId") == 100040)
+
         extracteddata = extract_specs(raw_data_pl, text_col="combined", price_col="itemPrice", name_col="itemName")
 
         extracteddatapd = extracteddata.to_pandas()
