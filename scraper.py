@@ -76,7 +76,7 @@ def run_scraper():
         
         raw_data_pl = pl.from_pandas(raw_data)
 
-        raw_data_pl.filter(pl.col("genreId") == 100040)
+        raw_data_pl.filter(pl.col("genreId") == "100040")
 
         extracteddata = extract_specs(raw_data_pl, text_col="combined", price_col="itemPrice", name_col="itemName")
 
