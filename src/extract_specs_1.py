@@ -560,10 +560,18 @@ def _polars_path(
     # Prepend identity columns (zero-copy slice from input frame)
     id_cols = {}
     if name_col and name_col in frame.columns:
-        id_cols["item_name"] = frame[name_col]
+        id_cols["itemName"] = frame[name_col]
     if price_col and price_col in frame.columns:
-        id_cols["price"] = frame[price_col]
-
+        id_cols["itemPrice"] = frame[price_col]
+    id_cols["itemCode"] = frame["itemCode"]
+    id_cols["genreId"] = frame["genreId"]
+    id_cols["shopName"] = frame["shopName"]
+    id_cols["is_active"] = frame["is_active"]
+    id_cols["scraped_at"] = frame["scraped_at"]
+    id_cols["search_query"] = frame["search_query"]
+    if "url" in frame.columns:
+        id_cols["itemUrl"] = frame["itemUrl"]
+    
     result = (
         pl.concat([pl.DataFrame(id_cols), spec_df], how="horizontal")
         if id_cols
@@ -571,6 +579,7 @@ def _polars_path(
     )
 
     return result.lazy() if lazy else result
+
 
 
 # ---------------------------------------------------------------------------
