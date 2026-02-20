@@ -14,12 +14,8 @@ import pytz
 import supabase
 from supabase import create_client
 from src.extract_specs_1 import extract_specs
-import streamlit as st
 
-current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Add it to your Polars DataFrame
-# 'pl.lit' stands for 'literal' (applies the same value to every row)
 def run_scraper():
     # if "SUPABASE_URL" in st.secrets:
 
