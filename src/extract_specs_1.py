@@ -129,21 +129,26 @@ _RE_OS = re.compile(
 
 # CPU — full text
 _RE_CPU = re.compile(
-    r'(?:intel\s+)?Core\s+[i][3579][-\s]\d{4,5}[A-Z]*'
+    r'(?:intel\s+)?Core[™®]*\s+[i][3579][-\s]\d{4,5}[A-Z]*'
     r'(?:\s*\d+\.\d+\s*(?:GHz|MHz))?(?:\s*[\(（][^\)）\n]{0,30}[\)）])?', _F)
 _RE_CPU_JP = re.compile(
-    r'インテル\s+Core\s+[i][3579]\s+プロセッサー?\s+\d{4,5}[A-Z]*'
+    # format A (pckobo): インテル® Core™ i5-10210U プロセッサー
+    # format B (rakuten): インテル Core i7 プロセッサー 8550U
+    r'インテル[®™]*\s+Core[™®]*\s+[i][3579]'
+    r'(?:[-\s]\d{4,5}[A-Z]*(?:\s*プロセッサー?)?'
+    r'|\s+プロセッサー?\s+\d{4,5}[A-Z]*)'
     r'(?:\s*[\(（]\s*[^\)）\n]{0,50}[\)）])?', _F)
 
 # CPU generation
 _RE_GEN_JP   = re.compile(r'第\s*(\d+)\s*世代')
 _RE_GEN_EN   = re.compile(r'(\d+)(?:st|nd|rd|th)\s*[Gg]en', _F)
-_RE_GEN_NUM  = re.compile(r'Core\s+[i][3579][-\s](\d)\d{3}[A-Z]', _F)
+_RE_GEN_NUM  = re.compile(r'Core[™®]*\s+[i][3579][-\s](\d)\d{3}[A-Z]', _F)
 
 # Memory
 _RE_MEM  = re.compile(
     r'(?:メモリ[容量]?\s*[：:（(]?\s*|RAM\s*[：:\s]+|MEM\s*[：:\s]+)(\d+)\s*GB', _F)
 _RE_MEM2 = re.compile(r'(\d+)GB\s*\(スロット', _F)
+_RE_MEM3 = re.compile(r'DDR[3-5](?:L|LP)?\s+(\d+)\s*GB', _F)  # e.g. DDR4 8GB
 
 # Storage
 _RE_SSD  = re.compile(r'(?:新品\s*)?(?:NVMe[式]?\s*)?(?:M\.2\s*)?SSD\s*[：:\s]*(\d+)\s*(GB|TB)', _F)
@@ -279,7 +284,7 @@ def _cpu_gen(text: str) -> Optional[str]:
 
 def _memory(text: str) -> Optional[str]:
     _VALID = {2, 4, 6, 8, 12, 16, 24, 32, 48, 64}
-    for pat in (_RE_MEM, _RE_MEM2):
+    for pat in (_RE_MEM, _RE_MEM2, _RE_MEM3):
         m = pat.search(text)
         if m:
             try:
@@ -560,10 +565,18 @@ def _polars_path(
     # Prepend identity columns (zero-copy slice from input frame)
     id_cols = {}
     if name_col and name_col in frame.columns:
-        id_cols["item_name"] = frame[name_col]
+        id_cols["itemName"] = frame[name_col]
     if price_col and price_col in frame.columns:
-        id_cols["price"] = frame[price_col]
-
+        id_cols["itemPrice"] = frame[price_col]
+    id_cols["itemCode"] = frame["itemCode"]
+    id_cols["genreId"] = frame["genreId"]
+    id_cols["shopName"] = frame["shopName"]
+    id_cols["is_active"] = frame["is_active"]
+    id_cols["scraped_at"] = frame["scraped_at"]
+    id_cols["search_query"] = frame["search_query"]
+    if "itemUrl" in frame.columns:
+        id_cols["itemUrl"] = frame["itemUrl"]
+    
     result = (
         pl.concat([pl.DataFrame(id_cols), spec_df], how="horizontal")
         if id_cols
@@ -657,82 +670,82 @@ def lib_info() -> dict[str, str]:
 # Demo / self-test
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    print("── Fast-library status ─────────────────────────────────────")
-    for lib, status in lib_info().items():
-        tick = "✓" if not status.startswith("NOT") else "✗"
-        print(f"  {tick}  {lib:<12}  {status}")
-    print()
+# if __name__ == "__main__":
+#     print("── Fast-library status ─────────────────────────────────────")
+#     for lib, status in lib_info().items():
+#         tick = "✓" if not status.startswith("NOT") else "✗"
+#         print(f"  {tick}  {lib:<12}  {status}")
+#     print()
 
-    # SAMPLE = [
-    #     {
-    #         "itemName": "フルHD 15.6型 Lenovo ThinkPad L580 Core i7 8550U M.2SSD256G メモリ8G",
-    #         "itemPrice": 36800,
-    #         "combined": (
-    #             "Windows11 Pro 64bit導入済みで第8世代Core i7搭載！ "
-    #             "メーカー名 Lenovo 型番 Thinkpad L580 "
-    #             "CPU 4コア8スレッド インテル Core i7 プロセッサー 8550U (1.80GHz〜4.00GHz) "
-    #             "液晶 15.6型 フルHD IPS液晶 (1,920×1,080ドット) "
-    #             "メモリ 8GB  M.2 SSD 256GB "
-    #             "Webカメラ HD 720p  Bluetooth 4.1 "
-    #             "USB3.0 ×2  USB Type-C x2 "
-    #             "OS Windows 11 Pro 64bit  重さ：2.0kg  保証期間1年間"
-    #         ),
-    #     },
-    #     {
-    #         "itemName": "Lenovo ThinkPad L590 16GB SSD256GB WPS Office 付き Windows11",
-    #         "itemPrice": 32800,
-    #         "combined": (
-    #             "型番Lenovo ThinkPad L590  CPU第8世代 Core i5 "
-    #             "画面15.6インチワイド (1,366x768)  RAMDDR4 16GB  SSD256GB "
-    #             "OS Windows 11 Pro 64bit  WPS Office 2 "
-    #             "USB 3.0x2  USB 3.1 Type-Cx2  テンキー "
-    #             "保証期間：30日間  光学ドライブ非搭載"
-    #         ),
-    #     },
-    #     {
-    #         "itemName": "ThinkPad L580 Core i5 8250U MEM:16GB SSD:512GB 一年保証",
-    #         "itemPrice": 31980,
-    #         "combined": (
-    #             "メーカーLenovo シリーズThinkPad L580 "
-    #             "メモリ容量16GB  容量（SSD）512GB(新品換装済) "
-    #             "CPU intel Core i5 8250U 1.6(〜最大3.4)GHz "
-    #             "ディスプレイ15.6型ワイド TN HD(1366×768)  重さ：2.0kg "
-    #             "OSWindows11Pro 64bit  保証期間1年間  光学ドライブ非搭載  テンキー"
-    #         ),
-    #     },
-    #     {
-    #         "itemName": "ThinkPad L580 Core i3 8130U 8GB SSD256GB WPS Office",
-    #         "itemPrice": 25800,
-    #         "combined": (
-    #             "Lenovo ThinkPad L580  OS Windows11 64ビット "
-    #             "第8世代Core i3  WPS Office "
-    #             "メモリ（RAM） 8GB  SSD：256GB "
-    #             "15.6インチ  TN液晶1366×768ドット "
-    #             "無線LAN対応  Bluetooth搭載  保証1年間"
-    #         ),
-    #     },
-    #     {
-    #         "itemName": "訳有 ThinkPad L580 Core i7-8550U 8GB NVMe SSD512GB Win11",
-    #         "itemPrice": 16489,
-    #         "combined": (
-    #             "型番：Lenovo ThinkPad L580 "
-    #             "CPU：第8世代Core i7-8550U 1.8Ghz、4コア8スレッド "
-    #             "爆速NVMe式 SSD 512GB  メモリ：8GB "
-    #             "ディスプレイ：15.6インチ 1366 x 768 "
-    #             "USB3.0 x2  USB Type-C接続口 x2個 "
-    #             "Webカメラ搭載  Bluetooth搭載 "
-    #             "OS Windows11 Pro 64bit  テンキー"
-    #         ),
-    #     },
-    # ]
-    # if _HAS_POLARS:
-    #     df = pl.from_dicts(SAMPLE)
-    #     print(f"Input : polars DataFrame  shape={df.shape}")
-    # else:
-    #     import pandas as pd
-    #     df = pd.DataFrame(SAMPLE)
-    #     print(f"Input : pandas DataFrame  shape={df.shape}")
+#     SAMPLE = [
+#         {
+#             "itemName": "フルHD 15.6型 Lenovo ThinkPad L580 Core i7 8550U M.2SSD256G メモリ8G",
+#             "itemPrice": 36800,
+#             "combined": (
+#                 "Windows11 Pro 64bit導入済みで第8世代Core i7搭載！ "
+#                 "メーカー名 Lenovo 型番 Thinkpad L580 "
+#                 "CPU 4コア8スレッド インテル Core i7 プロセッサー 8550U (1.80GHz〜4.00GHz) "
+#                 "液晶 15.6型 フルHD IPS液晶 (1,920×1,080ドット) "
+#                 "メモリ 8GB  M.2 SSD 256GB "
+#                 "Webカメラ HD 720p  Bluetooth 4.1 "
+#                 "USB3.0 ×2  USB Type-C x2 "
+#                 "OS Windows 11 Pro 64bit  重さ：2.0kg  保証期間1年間"
+#             ),
+#         },
+#         {
+#             "itemName": "Lenovo ThinkPad L590 16GB SSD256GB WPS Office 付き Windows11",
+#             "itemPrice": 32800,
+#             "combined": (
+#                 "型番Lenovo ThinkPad L590  CPU第8世代 Core i5 "
+#                 "画面15.6インチワイド (1,366x768)  RAMDDR4 16GB  SSD256GB "
+#                 "OS Windows 11 Pro 64bit  WPS Office 2 "
+#                 "USB 3.0x2  USB 3.1 Type-Cx2  テンキー "
+#                 "保証期間：30日間  光学ドライブ非搭載"
+#             ),
+#         },
+#         {
+#             "itemName": "ThinkPad L580 Core i5 8250U MEM:16GB SSD:512GB 一年保証",
+#             "itemPrice": 31980,
+#             "combined": (
+#                 "メーカーLenovo シリーズThinkPad L580 "
+#                 "メモリ容量16GB  容量（SSD）512GB(新品換装済) "
+#                 "CPU intel Core i5 8250U 1.6(〜最大3.4)GHz "
+#                 "ディスプレイ15.6型ワイド TN HD(1366×768)  重さ：2.0kg "
+#                 "OSWindows11Pro 64bit  保証期間1年間  光学ドライブ非搭載  テンキー"
+#             ),
+#         },
+#         {
+#             "itemName": "ThinkPad L580 Core i3 8130U 8GB SSD256GB WPS Office",
+#             "itemPrice": 25800,
+#             "combined": (
+#                 "Lenovo ThinkPad L580  OS Windows11 64ビット "
+#                 "第8世代Core i3  WPS Office "
+#                 "メモリ（RAM） 8GB  SSD：256GB "
+#                 "15.6インチ  TN液晶1366×768ドット "
+#                 "無線LAN対応  Bluetooth搭載  保証1年間"
+#             ),
+#         },
+#         {
+#             "itemName": "訳有 ThinkPad L580 Core i7-8550U 8GB NVMe SSD512GB Win11",
+#             "itemPrice": 16489,
+#             "combined": (
+#                 "型番：Lenovo ThinkPad L580 "
+#                 "CPU：第8世代Core i7-8550U 1.8Ghz、4コア8スレッド "
+#                 "爆速NVMe式 SSD 512GB  メモリ：8GB "
+#                 "ディスプレイ：15.6インチ 1366 x 768 "
+#                 "USB3.0 x2  USB Type-C接続口 x2個 "
+#                 "Webカメラ搭載  Bluetooth搭載 "
+#                 "OS Windows11 Pro 64bit  テンキー"
+#             ),
+#         },
+#     ]
+#     if _HAS_POLARS:
+#         df = pl.from_dicts(SAMPLE)
+#         print(f"Input : polars DataFrame  shape={df.shape}")
+#     else:
+#         import pandas as pd
+#         df = pd.DataFrame(SAMPLE)
+#         print(f"Input : pandas DataFrame  shape={df.shape}")
 
     # result = extract_specs(df, text_col="combined",
     #                        price_col="itemPrice", name_col="itemName")
@@ -760,6 +773,6 @@ if __name__ == "__main__":
 
     # print(result)
 
-    # Uncomment to export:
-    # to_json(result, "specs.json")
-    # to_parquet(result, "specs.parquet")
+    # # Uncomment to export:
+    # # to_json(result, "specs.json")
+    # # to_parquet(result, "specs.parquet")

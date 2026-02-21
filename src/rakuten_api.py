@@ -1,125 +1,82 @@
-import requests
-import streamlit as st
-import time
-import json
-import csv
-import pandas as pd
+from __future__ import annotations
+
 import os
+import time
 
-# Rakuten API Endpoint
-
-def process_rakuten_json(json_data):
-    """
-    Converts raw Rakuten JSON response into a flat Pandas DataFrame.
-    """
-    if "Items" not in json_data:
-        return pd.DataFrame()
-
-    # Unpack the nested 'Item' dictionary for each entry
-    items_list = [item["Item"] for item in json_data["Items"]]
-    
-    # Convert to DataFrame
-    df = pd.DataFrame(items_list)
-    
-    # Select only the columns we actually need for our model
-    columns_to_keep = [
-        'itemName', 'itemPrice', 'itemUrl', 'itemCaption', 
-        'genreId', 'shopName', 'itemCode'
-    ]
-    
-    # Filter only if the columns exist (safety check)
-    existing_cols = [c for c in columns_to_keep if c in df.columns]
-    return df[existing_cols]
-
-# --- How to collect multiple pages into one big DataFrame ---
-
-# all_dfs = [] # A list to hold small dataframes from each page
-
-# for page_num in range(1, 4):  # Fetch 3 pages
-#     raw_json = fetch_rakuten_items("中古 パソコン", page=page_num)
-#     if raw_json:
-#         page_df = process_rakuten_json(raw_json)
-#         all_dfs.append(page_df)
-
+import polars as pl
+import requests
 
 API_URL = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601"
 
-def fetch_rakuten_items(keyword, total_pages = 30):
+_COLUMNS = ["itemName", "itemPrice", "itemUrl", "itemCaption", "genreId", "shopName", "itemCode"]
+
+_EMPTY_SCHEMA = {
+    "itemName": pl.Utf8,
+    "itemPrice": pl.Int64,
+    "itemUrl": pl.Utf8,
+    "itemCaption": pl.Utf8,
+    "genreId": pl.Utf8,
+    "shopName": pl.Utf8,
+    "itemCode": pl.Utf8,
+}
+
+
+def fetch_rakuten_items(keyword: str, total_pages: int = 30) -> pl.DataFrame:
+    """Fetch used computer listings from Rakuten Ichiba API.
+
+    Returns a Polars DataFrame with columns defined in _COLUMNS.
+    Returns an empty DataFrame (correct schema) if nothing is found.
     """
-    Fetches used computer items from Rakuten Ichiba API.
-    """
-    TIMEOUT = 10
-    allitems = []
+    timeout = 10
+    all_items: list[dict] = []
+
+    app_id = os.environ.get("RAKUTEN_APP_ID")
+    affiliate_id = os.environ.get("RAKUTEN_AFFILIATE_ID")
 
     for page in range(1, total_pages + 1):
-        params = {
-            # "applicationId": st.secrets["RAKUTEN_APP_ID"],
-            "applicationId": os.environ.get("RAKUTEN_APP_ID"),
+        params: dict = {
+            "applicationId": app_id,
             "format": "json",
             "keyword": keyword,
             "page": page,
-            "usedFlag": 1,        # 1 focuses specifically on USED items
-            "genreId": 100026,    # Genre ID for 'Computers & Peripherals'
-            "hits": 30,           # Items per page (max 30)
-            "sort": "-itemPrice", # Sort by descending price (adjustable)
+            "usedFlag": 1,
+            "genreId": 100026,
+            "hits": 30,
+            "sort": "-itemPrice",
         }
-
-        # params = {
-        #     "applicationId": st.secrets["RAKUTEN_APP_ID"],
-        #     "format": "json",
-        #     "keyword": "Lenovo L590 -トナー -互換", # Note the negative keywords to block toner/compatibles
-        #     "genreId": 100026,                  # Try 110101 for Laptops or 213313 for Used specifically
-
-        #     "usedFlag": 1,
-        #     "hits": 30,
-        #     "sort": "+itemPrice", 
-        # }
-
-        
-        # Include affiliate ID if it exists in secrets
-        
-        params["affiliateId"] = os.environ.get("RAKUTEN_AFFILIATE_ID")
-
-
-        # if "RAKUTEN_AFFILIATE_ID" in st.secrets:
-        #     params["affiliateId"] = st.secrets["RAKUTEN_AFFILIATE_ID"]
+        if affiliate_id:
+            params["affiliateId"] = affiliate_id
 
         try:
-            response = requests.get(API_URL, params=params, timeout=TIMEOUT)
+            response = requests.get(API_URL, params=params, timeout=timeout)
             response.raise_for_status()
-            rawjson = response.json()
+            raw_json = response.json()
 
-            if "error" in rawjson:
-                st.error(f"API Error: {rawjson['error_description']}")
-                return None
-
-            if "Items" in rawjson and len(rawjson["Items"]) > 0:
-        # 2. Extract and flatten
-                page_df = process_rakuten_json(rawjson)
-                
-                # 3. Add to our collection
-                allitems.append(page_df)
-                print(f"✅ Scraped page {page}: {len(page_df)} items added.")
-            else:
-                print("🏁 No more items found or API limit reached.")
+            if "error" in raw_json:
+                print(f"[rakuten] API error: {raw_json.get('error_description', 'unknown')}")
                 break
 
-        
+            items = raw_json.get("Items", [])
+            if not items:
+                print(f"[rakuten] No more items at page {page}. Stopping.")
+                break
+
+            for wrapper in items:
+                item = wrapper["Item"]
+                all_items.append({col: item.get(col) for col in _COLUMNS})
+
+            print(f"[rakuten] Page {page}: {len(items)} items scraped.")
             time.sleep(3)
 
-
         except requests.exceptions.Timeout:
-            st.error("The request timed out. Rakuten's servers might be slow.")
+            print(f"[rakuten] Timeout on page {page}, skipping.")
         except requests.exceptions.HTTPError as e:
-            st.error(f"HTTP Error: {e.response.status_code} - {e.response.text}")
+            print(f"[rakuten] HTTP {e.response.status_code} on page {page}, stopping.")
+            break
         except Exception as e:
-            st.error(f"Unexpected Error: {e}")
+            print(f"[rakuten] Unexpected error on page {page}: {e}")
 
+    if not all_items:
+        return pl.DataFrame(schema=_EMPTY_SCHEMA)
 
-    # 4. Combine all pages at once (The "Senior" move)
-        if allitems:
-            all_items_df = pd.concat(allitems, ignore_index=True)
-        else:
-            all_items_df = pd.DataFrame()
-
-    return all_items_df
+    return pl.from_dicts(all_items, schema_overrides={"itemPrice": pl.Int64})

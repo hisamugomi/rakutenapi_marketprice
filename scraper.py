@@ -1,94 +1,93 @@
-import pandas as pd
-import polars as pl
-from src.rakuten_api import fetch_rakuten_items
-# from src.processor import process_results
-# from src.savetosupabase import save_to_supabase
-# from src.pckoboscrape import KoboScraperService
-import mojimoji
-import os
-# from src.cleanzentohan import clean_japanese_specs
-# from src.aiprocess import extract_specs
-from time import sleep
+from __future__ import annotations
+
 from datetime import datetime
+
+import os
+
+import mojimoji
+import polars as pl
 import pytz
-import supabase
-from supabase import create_client
+from supabase import Client, create_client
+
 from src.extract_specs_1 import extract_specs
-import streamlit as st
+from src.pckoboscrape import run_pckoubou_scraper
+from src.rakuten_api import fetch_rakuten_items
 
-current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-# Add it to your Polars DataFrame
-# 'pl.lit' stands for 'literal' (applies the same value to every row)
-def run_scraper():
-    # if "SUPABASE_URL" in st.secrets:
-
-    url = os.environ.get("SUPABASE_URL")
-    servicerole = os.environ.get("SERVICEROLE")    
-
-    # if "SUPABASE_URL" in st.secrets:
-    #     url = st.secrets["SUPABASE_URL"]
-
-    # if "SUPABASE_KEY" in st.secrets:
-    #     key = st.secrets["SUPABASE_KEY"]
-    # if "servicerole" in st.secrets:
-    #     servicerole = st.secrets["servicerole"]
-
-    supabase: Client = create_client(url, servicerole)
+QUERIES = [
+    "L580 -lenovo",
+    "L590 -lenovo",
+    "L390 -lenovo",
+    "Latitude 5300 -dell",
+    "Latitude 5400 -dell",
+    "Latitude 5490 -dell",
+    "Latitude 5500 -dell",
+    "Latitude 5590 -dell",
+]
 
 
-    querys = [
-        "L580 -lenovo", 
-        "L590 -lenovo", 
-        "L390 -lenovo", 
-        # "L390", 
-        # "L580", 
-        # "L590"
-        ]
-    
-    # 1. Get current time in JST (Japan Standard Time)
-    jst = pytz.timezone('Asia/Tokyo')
-    now_jst = datetime.now(jst).isoformat() # ISO format is best for Supabase
+def _get_supabase_client() -> Client:
+    """Load credentials from Streamlit secrets (dashboard) or env vars (GitHub Actions)."""
+    try:
+        import streamlit as st
+        url = st.secrets["SUPABASE_URL"]
+        servicerole = st.secrets["servicerole"]
+    except Exception:
+        url = os.environ["SUPABASE_URL"]
+        servicerole = os.environ["SERVICEROLE"]
+    return create_client(url, servicerole)
 
-    for query in querys:
-        # Fetch data using your existing function
-        raw_data = fetch_rakuten_items(query) 
-        
-        if raw_data.empty:
+
+def run_scraper() -> None:
+    supabase = _get_supabase_client()
+
+    jst = pytz.timezone("Asia/Tokyo")
+    now_jst = datetime.now(jst).isoformat()
+
+    # ── Rakuten ──────────────────────────────────────────────────────────────
+    for query in QUERIES:
+        raw = fetch_rakuten_items(query)
+        if raw.is_empty():
             continue
 
-        # 2. Data Cleaning & Metadata Addition
-        # Clean Japanese text (Zen-to-Han) on the 'itemName' or a 'combined' column
+        raw = raw.with_columns([
+            (pl.col("itemName") + pl.col("itemCaption"))
+            .map_elements(mojimoji.zen_to_han, return_dtype=pl.Utf8)
+            .alias("combined"),
+            pl.lit(now_jst).alias("scraped_at"),
+            pl.lit(True).alias("is_active"),
+            pl.lit(query).alias("search_query"),
+        ])
 
-        raw_data["combined"] = raw_data["itemName"] + raw_data["itemCaption"]
-
-        raw_data["combined"] = raw_data["combined"].apply(mojimoji.zen_to_han)
-        
-        # Add the 'scraped_at' timestamp and 'is_active' flag
-        raw_data["scraped_at"] = now_jst
-        raw_data["is_active"] = True
-        raw_data["search_query"] = query # Helps you filter in Streamlit later
-
-        # 3. UPSERT to Supabase
-        # .to_dict('records') converts the DataFrame into the JSON list Supabase needs
-        # data_list = raw_data.to_dict(orient='records')
-        
-        raw_data_pl = pl.from_pandas(raw_data)
-        extracteddata = extract_specs(raw_data_pl, text_col="combined", price_col="itemPrice", name_col="itemName")
-
-        extracteddatapd = extracteddata.to_pandas()
-        data_list = extracteddatapd.to_dict(orient='records')
-
-        print(extracteddatapd.columns)
+        extracted = extract_specs(raw, text_col="combined", price_col="itemPrice", name_col="itemName")
+        extracted = extracted.with_columns(pl.lit("rakuten").alias("source"))
+        data_list = extracted.to_dicts()
 
         try:
-            # We use 'itemCode' (Rakuten's unique ID) to prevent duplicates
             supabase.table("rakuten_table").insert(data_list).execute()
-
-            print(f"Successfully synced {len(data_list)} items for: {query}")
-
-
+            print(f"[rakuten] Inserted {len(data_list)} rows for: {query}")
         except Exception as e:
-            print(f"Error saving to Supabase: {e}")
+            print(f"[rakuten] Error saving '{query}': {e}")
 
-run_scraper()
+    # ── PC Koubou ────────────────────────────────────────────────────────────
+    pckoubou_data = run_pckoubou_scraper()
+    if pckoubou_data:
+        try:
+            pckoubou_pl = pl.from_dicts(pckoubou_data)
+            pckoubou_pl = pckoubou_pl.with_columns([
+                pl.col("itemName").alias("combined"),
+                pl.lit(None).cast(pl.Utf8).alias("genreId"),
+                pl.lit(None).cast(pl.Utf8).alias("shopName"),
+            ])
+            extracted = extract_specs(
+                pckoubou_pl, text_col="combined", price_col="itemPrice", name_col="itemName"
+            )
+            extracted = extracted.with_columns(pl.lit("pckoubou").alias("source"))
+            data_list = extracted.to_dicts()
+            supabase.table("rakuten_table").insert(data_list).execute()
+            print(f"[pckoubou] Inserted {len(data_list)} rows with specs")
+        except Exception as e:
+            print(f"[pckoubou] Error saving to Supabase: {e}")
+
+
+if __name__ == "__main__":
+    run_scraper()
