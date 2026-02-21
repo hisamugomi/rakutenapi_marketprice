@@ -431,12 +431,20 @@ def _usb_ports(text: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 def _normalize_brand(raw: Optional[str]) -> Optional[str]:
-    if raw is None or not _HAS_RAPIDFUZZ:
+    if raw is None:
         return raw
-    result = _rfprocess.extractOne(
-        raw, _BRANDS, scorer=_rfuzz.token_sort_ratio, score_cutoff=70
-    )
-    return result[0] if result else raw
+    # Exact case-insensitive match first (handles LENOVO → Lenovo, HP → HP, etc.)
+    raw_lower = raw.lower()
+    for brand in _BRANDS:
+        if brand.lower() == raw_lower:
+            return brand
+    # Fuzzy match for typos / partial names
+    if _HAS_RAPIDFUZZ:
+        result = _rfprocess.extractOne(
+            raw, _BRANDS, scorer=_rfuzz.token_sort_ratio, score_cutoff=70
+        )
+        return result[0] if result else raw
+    return raw
 
 
 # ---------------------------------------------------------------------------

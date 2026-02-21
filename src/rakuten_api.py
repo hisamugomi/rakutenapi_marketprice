@@ -33,6 +33,15 @@ def fetch_rakuten_items(keyword: str, total_pages: int = 30) -> pl.DataFrame:
     app_id = os.environ.get("RAKUTEN_APP_ID")
     affiliate_id = os.environ.get("RAKUTEN_AFFILIATE_ID")
 
+    # Fall back to Streamlit secrets (local dev / Streamlit Cloud)
+    if not app_id:
+        try:
+            import streamlit as st
+            app_id = st.secrets.get("RAKUTEN_APP_ID")
+            affiliate_id = st.secrets.get("RAKUTEN_AFFILIATE_ID")
+        except Exception:
+            pass
+
     for page in range(1, total_pages + 1):
         params: dict = {
             "applicationId": app_id,
@@ -79,4 +88,11 @@ def fetch_rakuten_items(keyword: str, total_pages: int = 30) -> pl.DataFrame:
     if not all_items:
         return pl.DataFrame(schema=_EMPTY_SCHEMA)
 
-    return pl.from_dicts(all_items, schema_overrides={"itemPrice": pl.Int64})
+    df = pl.from_dicts(all_items, schema_overrides={"itemPrice": pl.Int64})
+
+    # Keep computers only (genreId 100040) — filter out accessories, cables, etc.
+    before = len(df)
+    df = df.filter(pl.col("genreId").cast(pl.Utf8) == "100040")
+    print(f"[rakuten] Filtered {before - len(df)} non-computer items, {len(df)} remaining.")
+
+    return df

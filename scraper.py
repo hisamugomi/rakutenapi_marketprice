@@ -4,7 +4,6 @@ from datetime import datetime
 
 import os
 
-import mojimoji
 import polars as pl
 import pytz
 from supabase import Client, create_client
@@ -50,9 +49,7 @@ def run_scraper() -> None:
             continue
 
         raw = raw.with_columns([
-            (pl.col("itemName") + pl.col("itemCaption"))
-            .map_elements(mojimoji.zen_to_han, return_dtype=pl.Utf8)
-            .alias("combined"),
+            (pl.col("itemName") + pl.col("itemCaption")).alias("combined"),
             pl.lit(now_jst).alias("scraped_at"),
             pl.lit(True).alias("is_active"),
             pl.lit(query).alias("search_query"),
