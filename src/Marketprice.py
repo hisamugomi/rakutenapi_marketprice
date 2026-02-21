@@ -163,28 +163,35 @@ def get_supabase_client() -> Client:
 @st.cache_data(ttl=300)
 def fetch_data() -> pl.DataFrame:
     client = get_supabase_client()
-    response = (
-        client.table("rakuten_table")
-        .select("itemCode, itemName, itemPrice, itemUrl, shopName, scraped_at, search_query, is_active, source")
-        .execute()
-    )
-    if not response.data:
+
+    # Paginate — Supabase caps at 1000 rows per request
+    all_rows = []
+    page_size = 1000
+    offset = 0
+    while True:
+        response = (
+            client.table("listings_view")
+            .select("itemCode, itemName, itemPrice, itemUrl, shopName, brand, cpu, memory, ssd, os, scraped_at, search_query, is_active, source")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        if not response.data:
+            break
+        all_rows.extend(response.data)
+        if len(response.data) < page_size:
+            break
+        offset += page_size
+
+    if not all_rows:
         return pl.DataFrame()
 
-    df = pl.DataFrame(response.data)
+    df = pl.DataFrame(all_rows, infer_schema_length=None)
 
-    # Cast types
     df = df.with_columns([
         pl.col("itemPrice").cast(pl.Int64, strict=False),
         pl.col("scraped_at").str.to_datetime(strict=False, time_unit="us", time_zone="UTC"),
         pl.col("is_active").cast(pl.Boolean, strict=False),
     ])
-
-    # Ensure source column exists and fill nulls (older rows pre-dating the column)
-    if "source" not in df.columns:
-        df = df.with_columns(pl.lit("rakuten").alias("source"))
-    else:
-        df = df.with_columns(pl.col("source").fill_null("rakuten"))
 
     return df
 
@@ -528,33 +535,32 @@ def render_distribution_chart(df: pl.DataFrame, color: str):
 
 
 def render_listings_table(df: pl.DataFrame):
-    """Sortable listings table with clickable URLs."""
+    """Sortable listings table with specs and clickable URLs."""
+    cols = ["itemName", "itemPrice", "cpu", "memory", "ssd", "shopName", "scraped_at", "itemUrl", "source"]
+    available = [c for c in cols if c in df.columns]
     display = (
-        df.select(["itemName", "itemPrice", "shopName", "scraped_at", "itemUrl"])
+        df.select(available)
         .sort("itemPrice", descending=False)
         .with_columns(
             pl.col("itemPrice").map_elements(lambda x: f"¥{x:,}" if x else "—", return_dtype=pl.Utf8).alias("Price"),
             pl.col("scraped_at").dt.strftime("%Y-%m-%d").alias("Scraped"),
         )
-        .rename({
-            "itemName": "Listing",
-            "shopName": "Shop",
-            "itemUrl": "URL",
-        })
-        .select(["Listing", "Price", "Shop", "Scraped", "URL"])
     )
 
-    # Render as HTML table so URLs are clickable
+    th = "text-align:left; padding:0.5rem 0.75rem; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#555; font-weight:400;"
     rows_html = ""
     for row in display.iter_rows(named=True):
-        url = row["URL"] or "#"
+        url = row.get("itemUrl") or "#"
         rows_html += f"""
-        <tr>
-          <td style="max-width:380px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{row['Listing']}</td>
-          <td style="font-family:'IBM Plex Mono',monospace; white-space:nowrap;">{row['Price']}</td>
-          <td style="white-space:nowrap;">{row['Shop'] or '—'}</td>
-          <td style="font-family:'IBM Plex Mono',monospace; white-space:nowrap;">{row['Scraped'] or '—'}</td>
-          <td><a href="{url}" target="_blank" style="color:#4fc3f7; text-decoration:none; font-family:'IBM Plex Mono',monospace; font-size:0.75rem;">↗ open</a></td>
+        <tr style="border-bottom:1px solid #1a1a1a;">
+          <td style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0.4rem 0.75rem;">{row['itemName']}</td>
+          <td style="font-family:'IBM Plex Mono',monospace; white-space:nowrap; padding:0.4rem 0.75rem;">{row['Price']}</td>
+          <td style="font-family:'IBM Plex Mono',monospace; white-space:nowrap; padding:0.4rem 0.75rem;">{row.get('cpu') or '—'}</td>
+          <td style="font-family:'IBM Plex Mono',monospace; white-space:nowrap; padding:0.4rem 0.75rem;">{row.get('memory') or '—'}</td>
+          <td style="font-family:'IBM Plex Mono',monospace; white-space:nowrap; padding:0.4rem 0.75rem;">{row.get('ssd') or '—'}</td>
+          <td style="white-space:nowrap; padding:0.4rem 0.75rem;">{row.get('shopName') or '—'}</td>
+          <td style="font-family:'IBM Plex Mono',monospace; white-space:nowrap; padding:0.4rem 0.75rem;">{row['Scraped'] or '—'}</td>
+          <td style="padding:0.4rem 0.75rem;"><a href="{url}" target="_blank" style="color:#4fc3f7; text-decoration:none; font-family:'IBM Plex Mono',monospace; font-size:0.75rem;">↗ open</a></td>
         </tr>"""
 
     table_html = f"""
@@ -562,25 +568,18 @@ def render_listings_table(df: pl.DataFrame):
       <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
         <thead>
           <tr style="border-bottom:1px solid #2a2a2a;">
-            <th style="text-align:left; padding:0.5rem 0.75rem; font-family:'IBM Plex Mono',monospace;
-                       font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#555;
-                       font-weight:400;">Listing</th>
-            <th style="text-align:left; padding:0.5rem 0.75rem; font-family:'IBM Plex Mono',monospace;
-                       font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#555;
-                       font-weight:400;">Price</th>
-            <th style="text-align:left; padding:0.5rem 0.75rem; font-family:'IBM Plex Mono',monospace;
-                       font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#555;
-                       font-weight:400;">Shop</th>
-            <th style="text-align:left; padding:0.5rem 0.75rem; font-family:'IBM Plex Mono',monospace;
-                       font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#555;
-                       font-weight:400;">Scraped</th>
-            <th style="text-align:left; padding:0.5rem 0.75rem; font-family:'IBM Plex Mono',monospace;
-                       font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#555;
-                       font-weight:400;">Source</th>
+            <th style="{th}">Listing</th>
+            <th style="{th}">Price</th>
+            <th style="{th}">CPU</th>
+            <th style="{th}">RAM</th>
+            <th style="{th}">SSD</th>
+            <th style="{th}">Shop</th>
+            <th style="{th}">Scraped</th>
+            <th style="{th}">Link</th>
           </tr>
         </thead>
         <tbody style="color:#c0c0c0;">
-          {"".join(f'<tr style="border-bottom:1px solid #1a1a1a;">' + row + "</tr>" for row in rows_html.split("</tr>") if row.strip())}
+          {rows_html}
         </tbody>
       </table>
     </div>"""
