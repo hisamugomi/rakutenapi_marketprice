@@ -165,7 +165,7 @@ def fetch_data() -> pl.DataFrame:
     client = get_supabase_client()
     response = (
         client.table("rakuten_table")
-        .select("itemCode, itemName, itemPrice, itemUrl, shopName, scraped_at, search_query, is_active")
+        .select("itemCode, itemName, itemPrice, itemUrl, shopName, scraped_at, search_query, is_active, source")
         .execute()
     )
     if not response.data:
@@ -176,9 +176,15 @@ def fetch_data() -> pl.DataFrame:
     # Cast types
     df = df.with_columns([
         pl.col("itemPrice").cast(pl.Int64, strict=False),
-                pl.col("scraped_at").str.to_datetime(strict=False, time_unit="us", time_zone="UTC"),
+        pl.col("scraped_at").str.to_datetime(strict=False, time_unit="us", time_zone="UTC"),
         pl.col("is_active").cast(pl.Boolean, strict=False),
     ])
+
+    # Ensure source column exists and fill nulls (older rows pre-dating the column)
+    if "source" not in df.columns:
+        df = df.with_columns(pl.lit("rakuten").alias("source"))
+    else:
+        df = df.with_columns(pl.col("source").fill_null("rakuten"))
 
     return df
 
@@ -204,9 +210,34 @@ PLOTLY_LAYOUT = dict(
 )
 
 ACCENT_COLORS = {
+    # Lenovo
     "Lenovo L390": "#4fc3f7",
     "Lenovo L580": "#81c784",
     "Lenovo L590": "#ffb74d",
+    # Dell Latitude
+    "Dell Latitude 5300": "#ef9a9a",
+    "Dell Latitude 5400": "#f48fb1",
+    "Dell Latitude 5490": "#ce93d8",
+    "Dell Latitude 5500": "#80cbc4",
+    "Dell Latitude 5590": "#bcaaa4",
+}
+
+MODEL_QUERY_MAP = {
+    # Lenovo
+    "Lenovo L390": "L390 -lenovo",
+    "Lenovo L580": "L580 -lenovo",
+    "Lenovo L590": "L590 -lenovo",
+    # Dell Latitude
+    "Dell Latitude 5300": "Latitude 5300 -dell",
+    "Dell Latitude 5400": "Latitude 5400 -dell",
+    "Dell Latitude 5490": "Latitude 5490 -dell",
+    "Dell Latitude 5500": "Latitude 5500 -dell",
+    "Dell Latitude 5590": "Latitude 5590 -dell",
+}
+
+SOURCE_COLORS = {
+    "rakuten": "#4fc3f7",
+    "pckoubou": "#ce93d8",
 }
 
 
@@ -267,76 +298,137 @@ def render_stat_cards(s: dict):
 
 
 def render_trend_chart(df: pl.DataFrame, model: str, color: str):
-    """Median price per nightly run + listing count on secondary axis."""
+    """Median price per nightly run + listing count on secondary axis.
+
+    When the dataframe contains multiple sources, renders one median line per
+    source using SOURCE_COLORS so Rakuten and PC Koubou can be compared directly.
+    """
     if df.is_empty():
         st.markdown('<div class="no-data">— no data —</div>', unsafe_allow_html=True)
         return
 
-    # Floor to date of scraped_at for grouping by nightly run
-    trend = (
-        df.with_columns(
-            pl.col("scraped_at").dt.date().alias("run_date")
-        )
-        .group_by("run_date")
-        .agg([
-            pl.col("itemPrice").median().alias("median_price"),
-            pl.col("itemPrice").mean().alias("mean_price"),
-            pl.col("itemPrice").count().alias("listing_count"),
-        ])
-        .sort("run_date")
-        .drop_nulls("median_price")
-    )
-
-    if trend.is_empty():
-        st.markdown('<div class="no-data">— insufficient data for trend —</div>', unsafe_allow_html=True)
-        return
-
-    dates = trend["run_date"].to_list()
-    median_prices = trend["median_price"].to_list()
-    mean_prices = trend["mean_price"].to_list()
-    counts = trend["listing_count"].to_list()
+    sources_present = df["source"].unique().to_list() if "source" in df.columns else ["rakuten"]
+    multi_source = len(sources_present) > 1
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # Listing count bars (secondary)
-    fig.add_trace(
-        go.Bar(
-            x=dates,
-            y=counts,
-            name="Listing count",
-            marker_color="#1e1e1e",
-            marker_line_color="#2a2a2a",
-            marker_line_width=1,
-            opacity=0.9,
-        ),
-        secondary_y=True,
-    )
+    if multi_source:
+        # ── Per-source median lines ─────────────────────────────────────────────
+        all_counts = []
+        all_dates = []
 
-    # Mean price line (subtle)
-    fig.add_trace(
-        go.Scatter(
-            x=dates,
-            y=mean_prices,
-            name="Mean price",
-            mode="lines",
-            line=dict(color=color, width=1, dash="dot"),
-            opacity=0.4,
-        ),
-        secondary_y=False,
-    )
+        for src in sorted(sources_present):
+            src_color = SOURCE_COLORS.get(src, color)
+            src_df = df.filter(pl.col("source") == src)
 
-    # Median price line (primary)
-    fig.add_trace(
-        go.Scatter(
-            x=dates,
-            y=median_prices,
-            name="Median price",
-            mode="lines+markers",
-            line=dict(color=color, width=2),
-            marker=dict(size=5, color=color, line=dict(color="#0d0d0d", width=1)),
-        ),
-        secondary_y=False,
-    )
+            trend = (
+                src_df.with_columns(pl.col("scraped_at").dt.date().alias("run_date"))
+                .group_by("run_date")
+                .agg([
+                    pl.col("itemPrice").median().alias("median_price"),
+                    pl.col("itemPrice").count().alias("listing_count"),
+                ])
+                .sort("run_date")
+                .drop_nulls("median_price")
+            )
+            if trend.is_empty():
+                continue
+
+            dates = trend["run_date"].to_list()
+            median_prices = trend["median_price"].to_list()
+            counts = trend["listing_count"].to_list()
+            all_dates.extend(dates)
+            all_counts.extend(counts)
+
+            fig.add_trace(
+                go.Scatter(
+                    x=dates,
+                    y=median_prices,
+                    name=f"Median ({src})",
+                    mode="lines+markers",
+                    line=dict(color=src_color, width=2),
+                    marker=dict(size=5, color=src_color, line=dict(color="#0d0d0d", width=1)),
+                ),
+                secondary_y=False,
+            )
+
+        # Combined listing count bars
+        if all_dates:
+            from collections import defaultdict
+            count_by_date: dict = defaultdict(int)
+            for d, c in zip(all_dates, all_counts):
+                count_by_date[d] += c
+            sorted_dates = sorted(count_by_date)
+            fig.add_trace(
+                go.Bar(
+                    x=sorted_dates,
+                    y=[count_by_date[d] for d in sorted_dates],
+                    name="Listing count (total)",
+                    marker_color="#1e1e1e",
+                    marker_line_color="#2a2a2a",
+                    marker_line_width=1,
+                    opacity=0.9,
+                ),
+                secondary_y=True,
+            )
+
+    else:
+        # ── Single-source behaviour (original) ─────────────────────────────────
+        trend = (
+            df.with_columns(pl.col("scraped_at").dt.date().alias("run_date"))
+            .group_by("run_date")
+            .agg([
+                pl.col("itemPrice").median().alias("median_price"),
+                pl.col("itemPrice").mean().alias("mean_price"),
+                pl.col("itemPrice").count().alias("listing_count"),
+            ])
+            .sort("run_date")
+            .drop_nulls("median_price")
+        )
+
+        if trend.is_empty():
+            st.markdown('<div class="no-data">— insufficient data for trend —</div>', unsafe_allow_html=True)
+            return
+
+        dates = trend["run_date"].to_list()
+        median_prices = trend["median_price"].to_list()
+        mean_prices = trend["mean_price"].to_list()
+        counts = trend["listing_count"].to_list()
+
+        fig.add_trace(
+            go.Bar(
+                x=dates,
+                y=counts,
+                name="Listing count",
+                marker_color="#1e1e1e",
+                marker_line_color="#2a2a2a",
+                marker_line_width=1,
+                opacity=0.9,
+            ),
+            secondary_y=True,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=mean_prices,
+                name="Mean price",
+                mode="lines",
+                line=dict(color=color, width=1, dash="dot"),
+                opacity=0.4,
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=median_prices,
+                name="Median price",
+                mode="lines+markers",
+                line=dict(color=color, width=2),
+                marker=dict(size=5, color=color, line=dict(color="#0d0d0d", width=1)),
+            ),
+            secondary_y=False,
+        )
 
     fig.update_layout(
         **PLOTLY_LAYOUT,
@@ -496,6 +588,50 @@ def render_listings_table(df: pl.DataFrame):
     st.markdown(table_html, unsafe_allow_html=True)
 
 
+def render_all_models_trend(df: pl.DataFrame):
+    """One median price line per model on a shared time axis."""
+    fig = go.Figure()
+
+    for model, query in MODEL_QUERY_MAP.items():
+        color = ACCENT_COLORS[model]
+        model_df = df.filter(pl.col("search_query") == query)
+        if model_df.is_empty():
+            continue
+
+        trend = (
+            model_df.with_columns(pl.col("scraped_at").dt.date().alias("run_date"))
+            .group_by("run_date")
+            .agg(pl.col("itemPrice").median().alias("median_price"))
+            .sort("run_date")
+            .drop_nulls("median_price")
+        )
+        if trend.is_empty():
+            continue
+
+        fig.add_trace(go.Scatter(
+            x=trend["run_date"].to_list(),
+            y=trend["median_price"].to_list(),
+            name=model,
+            mode="lines+markers",
+            line=dict(color=color, width=2),
+            marker=dict(size=4, color=color),
+        ))
+
+    fig.update_layout(
+        **PLOTLY_LAYOUT,
+        height=420,
+        hovermode="x unified",
+        showlegend=True,
+        legend=dict(orientation="h", x=0, y=1.12, font=dict(size=10),
+                    bgcolor="rgba(0,0,0,0)"),
+    )
+    fig.update_yaxes(tickprefix="¥", tickformat=",", title_text="Median Price (¥)",
+                     gridcolor="#1e1e1e", linecolor="#2a2a2a")
+    fig.update_xaxes(tickformat="%b %d", tickangle=-30)
+
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown('<div class="app-title">Rakuten Market Intelligence</div>', unsafe_allow_html=True)
@@ -509,7 +645,7 @@ with st.sidebar:
         "Models",
         options=all_models,
         default=all_models,
-        help="Select which Lenovo models to display",
+        help="Select which models to display",
     )
 
     st.markdown("---")
@@ -525,6 +661,17 @@ with st.sidebar:
 
     # Active listings toggle
     active_only = st.checkbox("Active listings only", value=False)
+
+    st.markdown("---")
+
+    # Data source filter
+    source_options = ["rakuten", "pckoubou"]
+    selected_sources = st.multiselect(
+        "Data Source",
+        options=source_options,
+        default=source_options,
+        help="Toggle between Rakuten and PC Koubou data",
+    )
 
     st.markdown("---")
 
@@ -556,8 +703,17 @@ filtered_df = raw_df.filter(
 if active_only:
     filtered_df = filtered_df.filter(pl.col("is_active") == True)
 
+# Source filter
+if selected_sources:
+    filtered_df = filtered_df.filter(pl.col("source").is_in(selected_sources))
+
 # Drop nulls on price
 filtered_df = filtered_df.filter(pl.col("itemPrice").is_not_null())
+
+# ── Combined all-models trend ────────────────────────────────────────────────────
+st.markdown('<div class="section-label">All models — median price trend</div>',
+            unsafe_allow_html=True)
+render_all_models_trend(filtered_df)
 
 # ── Render per model ─────────────────────────────────────────────────────────────
 if not selected_models:
@@ -566,8 +722,7 @@ if not selected_models:
 
 for model in selected_models:
     color = ACCENT_COLORS[model]
-    # model_df = filtered_df.filter(pl.col("search_query") == model)
-    model_df = filtered_df.filter(pl.col("search_query") == "L390 -lenovo")
+    model_df = filtered_df.filter(pl.col("search_query") == MODEL_QUERY_MAP[model])
 
     # Model header
     st.markdown(f'<div class="model-header">Model</div>', unsafe_allow_html=True)
