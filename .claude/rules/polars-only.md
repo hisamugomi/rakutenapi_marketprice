@@ -2,7 +2,6 @@
 paths:
   - "src/**/*.py"
   - "tests/**/*.py"
-  - "notebooks/**/*.py"
 ---
 
 NEVER use pandas in this project. Always use Polars.

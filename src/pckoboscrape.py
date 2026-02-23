@@ -1,6 +1,7 @@
 import asyncio
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from playwright.async_api import async_playwright
 
 JST = timezone(timedelta(hours=9))

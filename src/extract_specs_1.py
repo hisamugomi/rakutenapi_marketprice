@@ -30,8 +30,9 @@ Usage
 """
 
 from __future__ import annotations
+
 import sys
-from typing import Optional, Any
+from typing import Any, Optional
 
 # ── polars (Rust DataFrame engine) ──────────────────────────────────────────
 try:
@@ -51,7 +52,8 @@ except ImportError:
 
 # ── rapidfuzz (C++ fuzzy matching) ───────────────────────────────────────────
 try:
-    from rapidfuzz import process as _rfprocess, fuzz as _rfuzz
+    from rapidfuzz import fuzz as _rfuzz
+    from rapidfuzz import process as _rfprocess
     _HAS_RAPIDFUZZ = True
 except ImportError:
     _HAS_RAPIDFUZZ = False
@@ -66,7 +68,6 @@ except ImportError:
 
 # ── pyarrow (C++ columnar / Parquet) ─────────────────────────────────────────
 try:
-    import pyarrow as pa
     import pyarrow.parquet as pq
     _HAS_ARROW = True
 except ImportError:
