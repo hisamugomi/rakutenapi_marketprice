@@ -55,14 +55,17 @@ def _upsert_batch(
     3. Mark products from this source that were NOT seen this run as inactive.
     """
     # ── Rename columns to match products schema ──────────────────────────────
-    products_df = (
-        extracted
-        .rename({
+    rename_map = {
+        k: v for k, v in {
             "itemCode": "item_code",
             "itemName": "item_name",
             "itemUrl":  "item_url",
             "shopName": "shop_name",
-        })
+        }.items() if k in extracted.columns
+    }
+    products_df = (
+        extracted
+        .rename(rename_map)
         .with_columns(pl.lit(now_jst).alias("last_seen_at"))
     )
 
