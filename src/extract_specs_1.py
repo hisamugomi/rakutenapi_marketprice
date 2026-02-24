@@ -150,6 +150,7 @@ _RE_MEM  = re.compile(
     r'(?:メモリ[容量]?\s*[：:（(]?\s*|RAM\s*[：:\s]+|MEM\s*[：:\s]+)(\d+)\s*GB', _F)
 _RE_MEM2 = re.compile(r'(\d+)GB\s*\(スロット', _F)
 _RE_MEM3 = re.compile(r'DDR[3-5](?:L|LP)?\s+(\d+)\s*GB', _F)  # e.g. DDR4 8GB
+_RE_MEM4 = re.compile(r'/(\d+)GB(?:\s+DDR[3-5](?:L|LP)?)?/', _F)  # pckoubou: /16GB/ or /8GB DDR5/
 
 # Storage
 _RE_SSD  = re.compile(r'(?:新品\s*)?(?:NVMe[式]?\s*)?(?:M\.2\s*)?SSD\s*[：:\s]*(\d+)\s*(GB|TB)', _F)
@@ -285,7 +286,7 @@ def _cpu_gen(text: str) -> Optional[str]:
 
 def _memory(text: str) -> Optional[str]:
     _VALID = {2, 4, 6, 8, 12, 16, 24, 32, 48, 64}
-    for pat in (_RE_MEM, _RE_MEM2, _RE_MEM3):
+    for pat in (_RE_MEM, _RE_MEM2, _RE_MEM3, _RE_MEM4):
         m = pat.search(text)
         if m:
             try:
