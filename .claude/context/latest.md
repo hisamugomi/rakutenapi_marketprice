@@ -1,91 +1,98 @@
 # Context Snapshot
-**Saved:** 2026-02-21 18:00
-**Phase:** Phase 1 — Scrapers + New DB Schema Working
+**Saved:** 2026-02-24 09:17
+**Phase:** Phase 1 complete + Phase 2 ML scaffold done — prepping merge to main
 **Branch:** feature/polars-cleanup
 
 ## What Was Accomplished This Session
-- Added hard rule to CLAUDE.md: never read/edit `.env` or `secrets.toml`
-- Created `.claude/context/latest.md` for context preservation
-- Rewrote `src/rakuten_api.py` — pure Polars, fixed concat-inside-loop bug, removed streamlit dependency, genre filter (genreId == 100040 keeps computers only, drops accessories)
-- Rewrote `scraper.py` — pure Polars, removed mojimoji from combined column (was breaking Japanese regex), `if __name__` guard, fallback to env vars for GitHub Actions
-- Fixed `src/extract_specs_1.py` — brand normalization (case-insensitive exact match first), `itemUrl` column check bug
-- Updated `.github/workflows/scraper.yaml` — uses `requirements.txt`, added playwright install, dropped pandas
-- Updated `requirements.txt` — removed pandas/torch/transformers/langchain, added actual deps
-- Updated `.gitignore` — added node_modules, models, data/processed
-- Installed `rapidfuzz` via `uv add`
-- **New DB schema** — created `products` and `price_history` tables in Supabase
-- Migrated all 2,179 rows from `rakuten_table` → 518 unique products + 2,179 price observations
-- Deleted 449 accessory products (cascade deleted 1,870 price_history rows) → 69 clean computer products, 309 price observations
-- Created `listings_view` (products JOIN price_history with camelCase aliases)
-- Updated `scraper.py` to upsert into `products` + insert into `price_history` + mark unseen items `is_active=false`
-- Updated `src/Marketprice.py` dashboard to read from `listings_view`, paginate past 1000 row limit, show CPU/RAM/SSD in listings table
-- Created `test_pipeline.py` — end-to-end test, all passing
-- **This session:** Installed `ruff` and `pytest` as dev dependencies via `uv add --dev ruff pytest`
-- **This session:** Added `[tool.ruff]` config to `pyproject.toml` (line-length=100, target py312, E/F/I rules)
-- **This session:** Created `dev.py` — task runner script for lint/fix/format/test/check
+- Fixed pckoubou memory extraction: added `_RE_MEM4` pattern to match slash-separated
+  format (`/16GB/`, `/8GB DDR5/`) used in pckoubou item names
+- Coverage improved: **24% → 88.3%** (172/721 → 637/721 rows with memory)
+- Backfilled 465 existing NULL-memory rows in Supabase via Postgres UPDATE (no re-scrape needed)
+- Committed memory fix: `4780a1a fix: improve pckoubou memory extraction coverage 24% → 88%`
+- Committed ML agent's work (lightgbm/sklearn deps + src/pipeline/score.py + test scaffolding):
+  `edd981a feat: add ML pipeline deps and scaffold (lightgbm, sklearn, score.py)`
+- Stashed remaining working tree (`.claude/context/latest.md`) as stash@{0} "context snapshot"
+- Attempted `git checkout main && git pull` → user rejected, stopped
+
+## ML Pipeline (built by prior ML agent — committed in edd981a)
+- `src/models/price_model.py` — `LightGBMPriceModel` wrapping sklearn Pipeline
+- `src/models/evaluation.py` — mae/rmse/mape/r2/report helpers
+- `src/models/train.py` — loads Supabase data, 80/20 split, fits, evaluates, saves
+- `src/pipeline/score.py` — batch scoring → inserts to price_predictions
+- `tests/test_models/test_price_model.py` — 5 unit tests (all passing per ML agent)
+- Architecture: sklearn Pipeline `_FeatureParser → _CatEncoder → LGBMRegressor`
+- Categorical cols (brand, os_clean, source): label-encoded to integers
+- Save/load: joblib.dump/load of the whole LightGBMPriceModel object
 
 ## Current State
-- **Working on:** Nothing in progress — `dev.py` just created, not yet committed
-- **Blocked by:** None
-- **Branch:** `feature/polars-cleanup` (NOT merged to main yet — user wants more testing first)
-- **Tests status:** `test_pipeline.py` passing (12 rows fetched, specs extracted, upserted). `tests/` directory exists but has no actual test files yet — only `conftest.py` with fixtures.
-- **Lint status:** 13 errors in legacy/dead files (`aiprocess.py`, `processor.py`, `savetosupabase.py`, `pckoubou.py`, `spec_extractor.py`). Active pipeline files (`scraper.py`, `rakuten_api.py`, `extract_specs_1.py`, `Marketprice.py`) are clean.
+- **Working on:** Prepping feature/polars-cleanup for merge to main
+- **Blocked by:** Pull main (user rejected the checkout — clarify before retrying)
+- **Branch:** `feature/polars-cleanup` — 5 commits ahead of `origin/feature/polars-cleanup`
+- **Stash:** stash@{0} = "context snapshot" (just .claude/context/latest.md — trivial)
+- **Tests:** `tests/test_models/test_price_model.py` has 5 tests; other test dirs are empty scaffolds
+- **Lint:** Clean
 
-## Files Modified (uncommitted)
-- `.claude/context/latest.md` — this file
-- `pyproject.toml` — added `[tool.ruff]` config, `ruff` + `pytest` dev deps
-- `uv.lock` — updated after adding dev deps
-- `src/Marketprice.py` — minor uncommitted edits (from __future__ import, page title rename, style comment removal)
-- `dev.py` — NEW FILE, task runner
-
-## Untracked files needing a commit
-- `dev.py`
-- `tests/` directory (conftest.py + empty subdirs)
-- `.claude/commands/`, `.claude/rules/`
-- `CLAUDE.md`, `CLAUDE(1).md` (new locations vs old `.claude_md_files/`)
-- `package.json`, `latest.md`, `load-context.md`, `save-context.md`, `status.md`, `polars-only.md` (root-level — probably should be moved or gitignored)
+## Files Modified This Session
+- `src/extract_specs_1.py` — added `_RE_MEM4` + added to `_memory()` loop (committed)
 
 ## Key Decisions Made
-- mojimoji removed from `combined` column in scraper — `zen_to_han` was converting katakana to half-width, breaking Japanese regex in spec extractor. `_fw2hw` inside `extract_specs_1.py` handles full-width ASCII conversion internally
-- Genre filter: Rakuten genreId == 100040 = computers; all other genreIds = accessories
-- DB architecture: `products` (one row per unique item, specs + is_active) + `price_history` (one row per scrape, price + timestamp) — designed for seasonal price tracking
-- `rakuten_table` kept as backup until user confirms drop
-- Branch not merged to main until user is satisfied with testing
-- `[tool.uv.scripts]` NOT supported in uv 0.10.4 — used `dev.py` Python script instead
-- ruff config: line-length=100, select E/F/I, ignore E501 (line length handled by formatter)
+- Memory fix: one regex `_RE_MEM4 = re.compile(r'/(\d+)GB(?:\s+DDR[3-5](?:L|LP)?)?/', _F)`
+  — minimal, safe, backward-compatible
+- Backfilled DB via direct SQL UPDATE (faster than re-scraping)
+- `_VALID = {2,4,6,8,12,16,24,32,48,64}` naturally rejects `/512GB SSD/` false positives
+
+## DB State (Supabase — project rpzmfrfzszjwaswpiijk, ap-south-1)
+- `products` — 791 rows (721 pckoubou + 70 rakuten)
+- pckoubou memory coverage: **88.3%** (up from 24%)
+- pckoubou SSD coverage: ~84%, CPU coverage: ~67%
+- rakuten memory coverage: ~37% (low — different format)
+
+## Products Table Schema (confirmed)
+```
+id, item_code, source, item_name, item_url, shop_name, search_query,
+brand, model, cpu, cpu_gen, memory, ssd, hdd, os, display_size, weight,
+bluetooth, webcam, usb_ports, is_active, first_seen_at, last_seen_at
+```
+- `cpu_gen` is TEXT (e.g. "8", "10"), not int
+- `price_history` timestamp column is `scraped_at` (not `observed_at`)
+
+## Git Log (feature/polars-cleanup — 5 commits ahead of origin)
+```
+edd981a feat: add ML pipeline deps and scaffold (lightgbm, sklearn, score.py)
+4780a1a fix: improve pckoubou memory extraction coverage 24% → 88%
+20e89cf fix: handle missing itemUrl in pckoubou upsert rename
+266c5cb refactor: delete dead legacy files, fix lint, add tests scaffold and dev tooling
+75103df feat: add ruff + pytest dev deps and dev.py task runner
+7e0a516 feat: update dashboard to query products + price_history via listings_view
+0ed668c feat: write to products + price_history schema
+```
 
 ## Next Steps (Priority Order)
-1. **Commit pending changes** — `dev.py`, `pyproject.toml`, `uv.lock`, `src/Marketprice.py`, `tests/` directory
-2. **Clean up root-level stray files** — `CLAUDE.md`, `CLAUDE(1).md`, `latest.md`, `load-context.md`, etc. should either be moved to `.claude/` or gitignored
-3. **Fix lint errors in legacy files** — either `uv run python dev.py fix` or delete dead files (`aiprocess.py`, `processor.py`, `savetosupabase.py`)
-4. **Write actual pytest tests** — `tests/test_scrapers/` and `tests/test_features/` are empty. Start with `test_extract_specs.py` (unit tests for spec extractor, no API calls needed)
-5. **Run full scraper** — `uv run python scraper.py` to populate all 8 queries into new schema and verify is_active marking
-6. **Drop `rakuten_table`** once confirmed not needed
-7. **Update GitHub Actions workflow** to trigger from `feature/polars-cleanup` branch (or merge to main)
-8. **ML pipeline** — feature engineering → LightGBM price model → Optuna tuning
-9. **Enable RLS policies** on products + price_history
+1. **Ask user** why `git checkout main` was rejected — is timing/permissions, or manual preference?
+2. **Pull main + rebase** — `git checkout main && git pull`, then
+   `git checkout feature/polars-cleanup && git rebase main`
+3. **Pop the stash** — `git stash pop` (trivial — just context file)
+4. **Review ML pipeline** before merging: run `uv run ruff check src/models/ src/pipeline/`
+   and `uv run pytest tests/test_models/ -x`
+5. **Create PR** — `gh pr create` from feature/polars-cleanup → main
+6. **Merge to main** once PR approved
+7. **Rakuten memory improvement** — only 37% coverage; investigate item name format
+8. **Tests with real HTML** — download HTML fixtures, write actual scraper test assertions
+9. **Drop `rakuten_table`** — once confirmed not needed
+10. **GitHub Actions** — update workflow to use new schema
 
 ## Open Questions
-- When is the user happy to merge `feature/polars-cleanup` → main?
-- Should `rakuten_table` be dropped now or kept longer?
-- Should the dead legacy files (`aiprocess.py`, `processor.py`, `savetosupabase.py`, `spec_extractor.py`, `pckoubou.py`) be deleted or kept?
-- What to do with root-level stray files (`package.json`, `CLAUDE.md` copies, etc.)?
+- Why did user reject `git checkout main && git pull`? Clarify before retrying.
+- Should `src/sofmapscrape.py` be integrated? Still untracked/orphaned.
+- Has ML model been trained yet? `uv run python -m src.models.train` not yet run.
 
 ## Important Notes
-- `.streamlit/secrets.toml` — NEVER read, edit, or open this file
-- `.env` — NEVER read, edit, or open this file
+- `.streamlit/secrets.toml` — NEVER read, edit, or open
+- `.env` — NEVER read, edit, or open
 - Always `uv add <package>`, never `pip install`
 - Always `uv run` to execute scripts
 - Prices in Japanese Yen (JPY)
-- Rakuten API queries use negative keywords e.g. `"L580 -lenovo"` to exclude new listings sold by the brand
-- PC Koubou scraper uses Playwright — needs `playwright install chromium` in CI
-- `cpu_gen` in products table is TEXT (not int) — matches extract_specs output
-- `test_pipeline.py` does NOT run the mark-inactive step — that only fires in full `run_scraper()`
-- `dev.py` commands: `uv run python dev.py lint|fix|format|test|check`
-- ruff 0.15.2, pytest 9.0.2 installed as dev deps
-
-## DB State (Supabase)
-- `products` — 69 rows (unique computers, no accessories)
-- `price_history` — 309+ rows (all price observations, appending each scrape run)
-- `listings_view` — joins products + price_history, camelCase aliases for dashboard compatibility
-- `rakuten_table` — still exists (2,179 rows), kept as backup, can drop when ready
+- `rakuten_table` is kept as backup — do NOT drop
+- `dev.py` task runner: `uv run python dev.py lint|fix|format|test|check`
+- stash@{0} = context snapshot (just .claude/context/latest.md) — pop after pulling main
+- stash@{1..4} = old stashes from earlier dev work on main/aiworks — ignore

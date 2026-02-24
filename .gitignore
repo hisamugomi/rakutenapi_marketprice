@@ -62,7 +62,7 @@ node_modules/
 package-lock.json
 
 # --- ML Artifacts ---
-models/
+/models/
 *.pkl
 *.joblib
 
