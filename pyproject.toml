@@ -5,7 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "lightgbm>=4.3.0",
+    "numpy>=1.26.0",
     "rapidfuzz>=3.14.3",
+    "scikit-learn>=1.4.0",
 ]
 
 [dependency-groups]
@@ -13,6 +16,9 @@ dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.2",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
