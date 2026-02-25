@@ -59,7 +59,7 @@ st.markdown("""
     font-family: 'IBM Plex Mono', monospace;
     font-size: 2rem;
     font-weight: 600;
-    color: #f0f0f0;
+    color: #000000;
     margin-bottom: 0.1rem;
     letter-spacing: -0.02em;
   }
@@ -152,6 +152,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+
 # ── Supabase connection ─────────────────────────────────────────────────────────
 @st.cache_resource
 def get_supabase_client() -> Client:
@@ -198,21 +200,21 @@ def fetch_data() -> pl.DataFrame:
 
 # ── Helpers ─────────────────────────────────────────────────────────────────────
 PLOTLY_LAYOUT = dict(
-    paper_bgcolor="#0d0d0d",
-    plot_bgcolor="#111111",
+    paper_bgcolor="#ffffff",
+    plot_bgcolor="#ffffff",
     font=dict(family="IBM Plex Mono, monospace", color="#888", size=11),
     margin=dict(l=50, r=30, t=40, b=50),
     xaxis=dict(
-        gridcolor="#1e1e1e",
-        linecolor="#2a2a2a",
-        tickcolor="#2a2a2a",
-        zerolinecolor="#2a2a2a",
+        gridcolor="#B4B4B4",
+        linecolor="#B4B4B4",
+        tickcolor="#B4B4B4",
+        zerolinecolor="#B4B4B4",
     ),
     yaxis=dict(
-        gridcolor="#1e1e1e",
-        linecolor="#2a2a2a",
-        tickcolor="#2a2a2a",
-        zerolinecolor="#2a2a2a",
+        gridcolor="#bbbbbb",
+        linecolor="#B4B4B4",
+        tickcolor="#B4B4B4",
+        zerolinecolor="#B4B4B4",
     ),
 )
 
@@ -273,31 +275,31 @@ def render_stat_cards(s: dict):
     st.markdown(f"""
     <div class="stat-grid">
       <div class="stat-card">
-        <div class="stat-label">Listings</div>
+        <div class="stat-label">Listings 搭載数</div>
         <div class="stat-value">{s['count']}<span class="stat-unit"> items</span></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Median</div>
+        <div class="stat-label">Median 中央価格</div>
         <div class="stat-value">{fmt_yen(s['median'])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Mean</div>
+        <div class="stat-label">Mean 平均価格</div>
         <div class="stat-value">{fmt_yen(s['mean'])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Std Dev</div>
+        <div class="stat-label">sd 分散</div>
         <div class="stat-value">{fmt_yen(s['std'])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">25th pct</div>
+        <div class="stat-label">25%</div>
         <div class="stat-value">{fmt_yen(s['p25'])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">75th pct</div>
+        <div class="stat-label">75%</div>
         <div class="stat-value">{fmt_yen(s['p75'])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Range</div>
+        <div class="stat-label">Range　最小から最大</div>
         <div class="stat-value">{fmt_yen(s['min'])} <span class="stat-unit">→</span> {fmt_yen(s['max'])}</div>
       </div>
     </div>
@@ -353,7 +355,7 @@ def render_trend_chart(df: pl.DataFrame, model: str, color: str):
                     y=median_prices,
                     name=f"Median ({src})",
                     mode="lines+markers",
-                    line=dict(color=src_color, width=2),
+                    line=dict(color=src_color, width=4),
                     marker=dict(size=5, color=src_color, line=dict(color="#0d0d0d", width=1)),
                 ),
                 secondary_y=False,
@@ -371,8 +373,8 @@ def render_trend_chart(df: pl.DataFrame, model: str, color: str):
                     x=sorted_dates,
                     y=[count_by_date[d] for d in sorted_dates],
                     name="Listing count (total)",
-                    marker_color="#1e1e1e",
-                    marker_line_color="#2a2a2a",
+                    marker_color="#b3b3b3",
+                    marker_line_color="#b3b3b3",
                     marker_line_width=1,
                     opacity=0.9,
                 ),
@@ -407,10 +409,10 @@ def render_trend_chart(df: pl.DataFrame, model: str, color: str):
                 x=dates,
                 y=counts,
                 name="Listing count",
-                marker_color="#1e1e1e",
+                marker_color="#b3b3b3",
                 marker_line_color="#2a2a2a",
                 marker_line_width=1,
-                opacity=0.9,
+                opacity=0.7,
             ),
             secondary_y=True,
         )
@@ -418,9 +420,9 @@ def render_trend_chart(df: pl.DataFrame, model: str, color: str):
             go.Scatter(
                 x=dates,
                 y=mean_prices,
-                name="Mean price",
+                name="Mean price (平均価格)",
                 mode="lines",
-                line=dict(color=color, width=1, dash="dot"),
+                line=dict(color=color, width=3, dash="dot"),
                 opacity=0.4,
             ),
             secondary_y=False,
@@ -429,7 +431,7 @@ def render_trend_chart(df: pl.DataFrame, model: str, color: str):
             go.Scatter(
                 x=dates,
                 y=median_prices,
-                name="Median price",
+                name="Median price (中央価格)",
                 mode="lines+markers",
                 line=dict(color=color, width=2),
                 marker=dict(size=5, color=color, line=dict(color="#0d0d0d", width=1)),
@@ -458,10 +460,10 @@ def render_trend_chart(df: pl.DataFrame, model: str, color: str):
         linecolor="#2a2a2a",
     )
     fig.update_yaxes(
-        title_text="Listings",
+        title_text="Listings 搭載数",
         secondary_y=True,
         gridcolor="rgba(0,0,0,0)",
-        linecolor="#2a2a2a",
+        linecolor="#b4b3b3",
         tickfont=dict(color="#444"),
         title_font=dict(color="#444"),
     )
@@ -534,7 +536,7 @@ def render_distribution_chart(df: pl.DataFrame, color: str):
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 
-def render_listings_table(df: pl.DataFrame):
+def render_listings_table1(df: pl.DataFrame):
     """Sortable listings table with specs and clickable URLs."""
     cols = ["itemName", "itemPrice", "cpu", "memory", "ssd", "shopName", "scraped_at", "itemUrl", "source"]
     available = [c for c in cols if c in df.columns]
@@ -548,7 +550,8 @@ def render_listings_table(df: pl.DataFrame):
     )
 
     th = "text-align:left; padding:0.5rem 0.75rem; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#555; font-weight:400;"
-    rows_html = ""
+    rows_html= ""
+
     for row in display.iter_rows(named=True):
         url = row.get("itemUrl") or "#"
         rows_html += f"""
@@ -586,6 +589,23 @@ def render_listings_table(df: pl.DataFrame):
 
     st.markdown(table_html, unsafe_allow_html=True)
 
+def render_listings_table(df: pl.DataFrame):
+    """Sortable listings table with specs and clickable URLs."""
+    cols = ["itemName", "itemPrice", "cpu", "memory", "ssd", "shopName", "scraped_at", "itemUrl", "source"]
+    available = [c for c in cols if c in df.columns]
+    display = (
+        df.select(available)
+        .sort("itemPrice", descending=False)
+        .with_columns(
+            pl.col("itemPrice").map_elements(lambda x: f"¥{x:,}" if x else "—", return_dtype=pl.Utf8).alias("Price"),
+            pl.col("scraped_at").dt.strftime("%Y-%m-%d").alias("Scraped"),
+        )
+    )
+
+    st.dataframe(df)
+
+    # st.markdown(table_html, unsafe_allow_html=True)
+
 
 def render_all_models_trend(df: pl.DataFrame):
     """One median price line per model on a shared time axis."""
@@ -612,7 +632,7 @@ def render_all_models_trend(df: pl.DataFrame):
             y=trend["median_price"].to_list(),
             name=model,
             mode="lines+markers",
-            line=dict(color=color, width=2),
+            line=dict(color=color, width=3),
             marker=dict(size=4, color=color),
         ))
 
@@ -624,8 +644,8 @@ def render_all_models_trend(df: pl.DataFrame):
         legend=dict(orientation="h", x=0, y=1.12, font=dict(size=10),
                     bgcolor="rgba(0,0,0,0)"),
     )
-    fig.update_yaxes(tickprefix="¥", tickformat=",", title_text="Median Price (¥)",
-                     gridcolor="#1e1e1e", linecolor="#2a2a2a")
+    fig.update_yaxes(tickprefix="¥", tickformat=",", title_text="Median Price 中央価格(¥)",
+                     gridcolor="#b5b5b5", linecolor="#2a2a2a")
     fig.update_xaxes(tickformat="%b %d", tickangle=-30)
 
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
@@ -633,8 +653,8 @@ def render_all_models_trend(df: pl.DataFrame):
 
 # ── Sidebar ─────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown('<div class="app-title">Rakuten Market Intelligence</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-name">Price Analyzer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-title">Price Analyzer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-name">市場価格推測サイト</div>', unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -644,7 +664,7 @@ with st.sidebar:
         "Models",
         options=all_models,
         default=all_models,
-        help="Select which models to display",
+        help="Select which models to display (表示するモデルを選択)",
     )
 
     st.markdown("---")
@@ -678,15 +698,10 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-    st.markdown(
-        '<div style="font-family:\'IBM Plex Mono\',monospace; font-size:0.65rem; color:#333; margin-top:1rem;">'
-        'Data refreshes every 5 min<br>Source: Supabase · rakuten_table</div>',
-        unsafe_allow_html=True,
-    )
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────────
-with st.spinner("Fetching data..."):
+with st.spinner("Fetching data (データを取得中)..."):
     raw_df = fetch_data()
 
 if raw_df.is_empty():
@@ -710,7 +725,9 @@ if selected_sources:
 filtered_df = filtered_df.filter(pl.col("itemPrice").is_not_null())
 
 # ── Combined all-models trend ────────────────────────────────────────────────────
-st.markdown('<div class="section-label">All models — median price trend</div>',
+st.markdown('<div class="model-title">All models price trend モデルごとの価格トレンド</div>',             unsafe_allow_html=True)
+
+st.markdown('<div class="section-label">All models price trend モデルごとの価格トレンド</div>',
             unsafe_allow_html=True)
 render_all_models_trend(filtered_df)
 
@@ -743,13 +760,13 @@ for model in selected_models:
         render_stat_cards(s)
 
     # 2. Price trend
-    st.markdown('<div class="section-label">Price trend over time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Price trend over time 価格トレンド</div>', unsafe_allow_html=True)
     render_trend_chart(model_df, model, color)
 
     # 3. Distribution
-    st.markdown('<div class="section-label">Price distribution</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Price distribution 価格分散</div>', unsafe_allow_html=True)
     render_distribution_chart(model_df, color)
 
     # 4. Listings table
-    st.markdown('<div class="section-label">Individual listings</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Individual listings 生データ</div>', unsafe_allow_html=True)
     render_listings_table(model_df)
