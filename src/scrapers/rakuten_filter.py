@@ -39,7 +39,14 @@ NOISE_GENRE_IDS: Final[frozenset[str]] = frozenset({"552420"})
 
 NOISE_KEYWORDS: Final[tuple[str, ...]] = (
     # Power / charging accessories
-    "バッテリー",
+    # Note: bare "バッテリー" is intentionally omitted — "バッテリー良好" / "バッテリー内蔵"
+    # are standard used-PC quality descriptors, not accessory keywords.
+    # Use specific compound forms instead.
+    "バッテリーパック",
+    "バッテリー交換",
+    "純正バッテリー",
+    "交換用バッテリー",
+    "互換バッテリー",
     "アダプター",
     "アダプタ",
     "充電器",

@@ -119,8 +119,11 @@ _KEEP_CASES: list[tuple[str, str | None, bool]] = [
     ("MacBook Pro 2019 16インチ", "100026", False),
     ("ノートパソコン Ryzen 5 256GB SSD 中古", "0", False),
     ("Surface Pro 7 i5-1035G4 8GB SSD256", None, False),
+    # バッテリー良好 / 内蔵 are PC quality descriptors → clean keep (fixed false-negative)
+    ("ThinkPad X250 バッテリー良好 中古 ノートPC", "100040", False),
+    ("中古パソコン ノートパソコン バッテリー内蔵 Windows11", "100040", False),
     # Mixed signals in unknown genre → uncertain
-    ("ThinkPad X250 バッテリー 内蔵 交換済み", "0", True),
+    ("ThinkPad X250 バッテリーパック 交換用 純正", "0", True),
     ("Let's note CF-MX4 ACアダプター セット", "0", True),
 ]
 
