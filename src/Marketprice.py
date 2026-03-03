@@ -185,26 +185,40 @@ def get_supabase_client() -> Client:
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["servicerole"])
 
 
+def _fetch_all(client: Client, table: str, select: str, page_size: int = 1000) -> list[dict]:
+    """Paginate through a Supabase table to bypass the 1000-row server cap."""
+    rows: list[dict] = []
+    offset = 0
+    while True:
+        resp = client.table(table).select(select).range(offset, offset + page_size - 1).execute()
+        rows.extend(resp.data)
+        if len(resp.data) < page_size:
+            break
+        offset += page_size
+    return rows
+
+
 @st.cache_data(ttl=300)
 def fetch_data() -> pl.DataFrame:
     client = get_supabase_client()
 
-    products_resp = client.table("products").select(
+    products_data = _fetch_all(
+        client, "products",
         "id, item_name, item_url, shop_name, brand, model, "
-        "cpu, cpu_gen, memory, ssd, hdd, os, display_size, is_active, source"
-    ).execute()
+        "cpu, cpu_gen, memory, ssd, hdd, os, display_size, is_active, source",
+    )
+    price_data = _fetch_all(
+        client, "price_history",
+        "product_id, price, scraped_at, source, search_query",
+    )
 
-    price_resp = client.table("price_history").select(
-        "product_id, price, scraped_at, source, search_query"
-    ).execute()
-
-    if not products_resp.data or not price_resp.data:
+    if not products_data or not price_data:
         return pl.DataFrame()
 
-    products_df = pl.DataFrame(products_resp.data).with_columns(
+    products_df = pl.DataFrame(products_data, infer_schema_length=None).with_columns(
         pl.col("is_active").cast(pl.Boolean, strict=False),
     )
-    price_df = pl.DataFrame(price_resp.data).with_columns([
+    price_df = pl.DataFrame(price_data).with_columns([
         pl.col("price").cast(pl.Int64, strict=False),
         pl.col("scraped_at").str.to_datetime(strict=False, time_unit="us", time_zone="UTC"),
     ])
@@ -639,7 +653,15 @@ with st.sidebar:
 
     scoped = raw_df.filter(pl.col("brand").is_in(selected_brands)) if selected_brands else raw_df
     all_names = sorted(scoped["display_name"].drop_nulls().unique().to_list())
-    selected_names = st.multiselect("Model", options=all_names, default=all_names)
+    top_names = (
+        scoped.filter(pl.col("display_name").is_not_null())
+        .group_by("display_name")
+        .agg(pl.len().alias("obs"))
+        .sort("obs", descending=True)
+        .head(5)["display_name"]
+        .to_list()
+    )
+    selected_names = st.multiselect("Model", options=all_names, default=top_names)
 
     st.markdown("---")
 

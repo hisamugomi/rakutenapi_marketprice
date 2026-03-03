@@ -134,7 +134,11 @@ def run_scraper() -> None:
         ])
 
         extracted = extract_specs(raw, text_col="combined", price_col="itemPrice", name_col="itemName")
-        extracted = extracted.with_columns(pl.lit("rakuten").alias("source"))
+        extracted = extracted.with_columns([
+            pl.lit("rakuten").alias("source"),
+            pl.lit(None).cast(pl.Utf8).alias("brand"),
+            pl.lit(None).cast(pl.Utf8).alias("model"),
+        ])
 
         try:
             _upsert_batch(supabase, extracted, "rakuten", now_jst)
@@ -155,7 +159,11 @@ def run_scraper() -> None:
             extracted = extract_specs(
                 pckoubou_pl, text_col="combined", price_col="itemPrice", name_col="itemName"
             )
-            extracted = extracted.with_columns(pl.lit("pckoubou").alias("source"))
+            extracted = extracted.with_columns([
+                pl.lit("pckoubou").alias("source"),
+                pl.lit(None).cast(pl.Utf8).alias("brand"),
+                pl.lit(None).cast(pl.Utf8).alias("model"),
+            ])
             _upsert_batch(supabase, extracted, "pckoubou", now_jst)
         except Exception as e:
             print(f"  Error: {e}")
