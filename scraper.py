@@ -12,14 +12,14 @@ from src.pckoboscrape import run_pckoubou_scraper
 from src.rakuten_api import fetch_rakuten_items
 
 QUERIES = [
-    "L580 -lenovo",
-    "L590 -lenovo",
-    "L390 -lenovo",
-    "Latitude 5300 -dell",
-    "Latitude 5400 -dell",
-    "Latitude 5490 -dell",
-    "Latitude 5500 -dell",
-    "Latitude 5590 -dell",
+    "L580",
+    "L590",
+    "L390",
+    "Latitude 5300",
+    "Latitude 5400",
+    "Latitude 5490",
+    "Latitude 5500",
+    "Latitude 5590",
 ]
 
 # Columns that map to the products table
