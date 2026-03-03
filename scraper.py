@@ -10,6 +10,7 @@ from supabase import Client, create_client
 from src.extract_specs_1 import extract_specs
 from src.pckoboscrape import run_pckoubou_scraper
 from src.rakuten_api import fetch_rakuten_items
+from src.sofmapscrape import run_sofmap_scraper
 
 QUERIES = [
     "L580",
@@ -156,6 +157,25 @@ def run_scraper() -> None:
             )
             extracted = extracted.with_columns(pl.lit("pckoubou").alias("source"))
             _upsert_batch(supabase, extracted, "pckoubou", now_jst)
+        except Exception as e:
+            print(f"  Error: {e}")
+
+    # ── Sofmap ────────────────────────────────────────────────────────────────
+    print("\n[sofmap] Scraping...")
+    sofmap_data = run_sofmap_scraper()
+    if sofmap_data:
+        try:
+            sofmap_pl = pl.from_dicts(sofmap_data)
+            sofmap_pl = sofmap_pl.with_columns([
+                pl.col("itemName").alias("combined"),
+                pl.lit(None).cast(pl.Utf8).alias("genreId"),
+                pl.lit(None).cast(pl.Utf8).alias("shopName"),
+            ])
+            extracted = extract_specs(
+                sofmap_pl, text_col="combined", price_col="itemPrice", name_col="itemName"
+            )
+            extracted = extracted.with_columns(pl.lit("sofmap").alias("source"))
+            _upsert_batch(supabase, extracted, "sofmap", now_jst)
         except Exception as e:
             print(f"  Error: {e}")
 
