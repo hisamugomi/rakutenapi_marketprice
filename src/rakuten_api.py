@@ -43,7 +43,7 @@ def fetch_rakuten_items(keyword: str, total_pages: int = 30) -> pl.DataFrame:
             app_id = os.environ["RAKUTEN_APP_ID"]
             app_id = os.environ["RAKUTEN_AFFILIATE_ID"]
 
-            pass
+            # pass
 
     for page in range(1, total_pages + 1):
         params: dict = {
