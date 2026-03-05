@@ -137,7 +137,7 @@ def run_scraper() -> None:
         extracted = extracted.with_columns([
             pl.lit("rakuten").alias("source"),
             pl.lit(None).cast(pl.Utf8).alias("brand"),
-            pl.lit(None).cast(pl.Utf8).alias("model"),
+            pl.lit(query).cast(pl.Utf8).alias("model"),
         ])
 
         try:
