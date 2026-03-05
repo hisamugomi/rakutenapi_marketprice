@@ -40,6 +40,9 @@ def fetch_rakuten_items(keyword: str, total_pages: int = 30) -> pl.DataFrame:
             app_id = st.secrets.get("RAKUTEN_APP_ID")
             affiliate_id = st.secrets.get("RAKUTEN_AFFILIATE_ID")
         except Exception:
+            app_id = os.environ["RAKUTEN_APP_ID"]
+            app_id = os.environ["RAKUTEN_AFFILIATE_ID"]
+
             pass
 
     for page in range(1, total_pages + 1):
