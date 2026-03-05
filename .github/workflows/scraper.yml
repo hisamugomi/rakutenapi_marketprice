@@ -1,28 +1,36 @@
-name: Daily Scraper
+name: Rust-Fast PC Scraper
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 07:00 JST daily
-  workflow_dispatch:         # manual trigger
+    - cron: '0 15 * * *'
+  workflow_dispatch:
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SERVICEROLE:  ${{ secrets.SERVICEROLE }}
-
     steps:
       - uses: actions/checkout@v4
 
+      # Install uv (The Rust-based package manager)
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true # Speeds up future runs even more
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Initialize venv
+        # uv sync is faster than pip install
+        run: uv venv
 
       - name: Install dependencies
-        run: uv sync
+        # uv sync is faster than pip install
+        run: uv pip install polars supabase requests mojimoji pytz pandas streamlit
 
-      - name: Install Playwright browsers
-        run: uv run playwright install chromium --with-deps
-
-      - name: Run scraper
-        run: uv run python scraper.py
+      - name: Run Scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICEROLE: ${{ secrets.SERVICEROLE }}
+          RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
+        run: uv run scraper.py
