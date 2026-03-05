@@ -17,6 +17,7 @@ async def findmaxlisting(url: str) -> int:
         # await page.pause()  # Remove this in production
         await browser.close()
         clean_num = int(raw_num.replace(",", "").strip())
+        time.sleep(10)
         return clean_num
 
 async def scrape_sofmap(url: str) -> list[dict]:

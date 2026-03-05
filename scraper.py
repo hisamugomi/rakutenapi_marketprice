@@ -170,7 +170,7 @@ def run_scraper() -> None:
 
     # ── Sofmap ────────────────────────────────────────────────────────────────
     print("\n[sofmap] Scraping...")
-    sofmap_data = run_sofmap_scraper()
+    sofmap_data = run_sofmap_scraper(max_pages = 20)
     if sofmap_data:
         try:
             sofmap_pl = pl.from_dicts(sofmap_data)
