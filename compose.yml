@@ -1,0 +1,23 @@
+services:
+  claude:
+    build: .
+    container_name: claude-ai-sandbox
+    # ターミナル対話（TTY）を有効にする
+    stdin_open: true
+    tty: true
+    volumes:
+      # Windowsの絶対パスをコンテナの/appにバインド
+      # これにより、Claudeはこのフォルダより外（C:\の他フォルダ）を読み取れません
+      - "C:/AI_wp/rakutenapi_marketprice-main"
+      # 設定（ログイン情報）を保持したい場合は以下を有効化
+      # - ./claude_config:/root/.config
+    environment:
+      # APIキーを環境変数で渡す（推奨）
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    # セキュリティを高めるため、ホストのネットワークから分離
+    networks:
+      - private_net
+
+networks:
+  private_net:
+    driver: bridge

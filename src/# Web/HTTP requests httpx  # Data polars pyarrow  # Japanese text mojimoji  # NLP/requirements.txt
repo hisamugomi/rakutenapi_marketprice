@@ -1,0 +1,38 @@
+# Web / HTTP
+requests
+httpx
+
+# Data
+polars
+pyarrow
+
+# Japanese text
+mojimoji
+
+# NLP / Matching
+regex
+rapidfuzz
+orjson
+
+# Timezone
+pytz
+
+# Scraping
+playwright
+beautifulsoup4
+selectolax
+
+# Database
+supabase
+
+# Dashboard
+streamlit
+plotly
+numpy
+scipy
+
+# ML (next phase)
+lightgbm
+scikit-learn
+optuna
+shap

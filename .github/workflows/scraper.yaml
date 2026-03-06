@@ -1,0 +1,38 @@
+name: Rust-Fast PC Scraper
+
+on:
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+        env:
+          UV_HTTP_2: 0  # uvに対してHTTP/2を無効化する設定
+
+      - name: Initialize venv
+        run: uv venv
+
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium --with-deps
+
+      - name: Run Scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICEROLE: ${{ secrets.SERVICEROLE }}
+          RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
+        run: uv run python scraper.py

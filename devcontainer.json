@@ -1,0 +1,108 @@
+{
+  "name": "Existing Docker Compose (Extend)",
+  "dockerComposeFile": ["../compose.yml"],
+  "service": "app",
+  "workspaceFolder": "/app",
+  "shutdownAction": "stopCompose",
+  "overrideCommand": true,
+
+  // ===== 追加推奨 =====
+  "forwardPorts": [8501],
+  "portsAttributes": {
+    "8501": {
+      "label": "Streamlit App",
+      "onAutoForward": "notify"
+    }
+  },
+  // ===================
+  
+  // ===== Claude Code用の追加設定ここから =====
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code",
+
+  "remoteUser": "developer",
+
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/developer/.claude"
+  },
+  // ===== Claude Code用の追加設定ここまで =====
+  
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // Pythonのデフォルトのインタプリタパス
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "[python]": {
+          // ファイルの保存時にフォーマットを実行する
+          "editor.formatOnSave": true,
+          // ファイルの保存時のアクションを設定する
+          "editor.codeActionsOnSave": {
+            // リンター機能の実行し、修正可能なエラーを修正する
+            "source.fixAll.ruff": "explicit",
+            // インポート文の整理を行う
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        // Ruffをフォーマッターとして利用する（DevContainer起動後に有効）
+        "ruff.format.enable": true,
+        // Notebookの保存時にフォーマットを実行する
+        "notebook.formatOnSave.enabled": true,
+        // Notebookの保存時のアクションを設定する
+        "notebook.codeActionsOnSave": {
+          // リンター機能の実行し、修正可能なエラーを修正する
+          "notebook.source.fixAll": "explicit",
+          // インポート文の整理を行う
+          "notebook.source.organizeImports": "explicit"
+        },
+        "autoDocstring.docstringFormat": "google",
+        "python.testing.pytestArgs": [
+          "tests",
+          "-vv", // 詳細結果の出力
+          "-s" // print文の出力
+        ],
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": true,
+        // コードセルの解析時にシェル割り当て(#!)、行マジック(#!%)およびセルマジック(#!%%)のコメントを解除します。
+        "jupyter.interactiveWindow.textEditor.magicCommandsAsComments": true,
+        // デバッグするときにライブラリコードにステップインできるようにする。
+        "jupyter.debugJustMyCode": false,
+        // 引数名を表示
+        "python.analysis.inlayHints.callArgumentNames": "all",
+        // 型を表示
+        "python.analysis.inlayHints.variableTypes": true,
+        // 戻り値の型を表示
+        "python.analysis.inlayHints.functionReturnTypes": true
+      },
+      "extensions": [
+        // 開発支援
+        "ceintl.vscode-language-pack-ja",
+        "github.copilot",
+        "usernamehw.errorlens",
+        "gruntfuggly.todo-tree",
+        "ibm.output-colorizer",
+        "editorconfig.editorconfig",
+        "mosapride.zenkaku",
+        "ionutvmi.path-autocomplete",
+        // python関連
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "njpwerner.autodocstring",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-keymap",
+        // Markdown関連
+        "yzane.markdown-pdf",
+        // CSV関連
+        "janisdd.vscode-edit-csv",
+        "mechatroner.rainbow-csv",
+        // Git関連
+        "mhutchie.git-graph"
+      ]
+    }
+  }
+}
