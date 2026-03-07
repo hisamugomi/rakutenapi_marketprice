@@ -25,8 +25,10 @@ jobs:
         run: uv venv
 
       - name: Install dependencies
-        # uv sync is faster than pip install
-        run: uv pip install polars supabase requests mojimoji pytz pandas streamlit
+        run: uv pip install polars supabase requests pytz playwright
+
+      - name: Install Playwright browser
+        run: uv run playwright install chromium --with-deps
 
       - name: Run Scraper
         env:
