@@ -1,4 +1,4 @@
-name: Rust-Fast PC Scraper
+name: Rust-Fast PC Scraper 1
 
 on:
   schedule:
