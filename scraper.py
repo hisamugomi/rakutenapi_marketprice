@@ -74,10 +74,26 @@ def _upsert_batch(
     products_data = products_df.select(available_cols).to_dicts()
 
     # ── 1. Upsert products ───────────────────────────────────────────────────
-    supabase.table("products").upsert(
-        products_data, on_conflict="source,item_code"
-    ).execute()
+    # supabase.table("products").upsert(
+    #     products_data, on_conflict="source,item_code"
+    # ).execute()
     print(f"  Upserted {len(products_data)} products")
+    try:
+        response = supabase.table("products").upsert(
+            products_data,
+            on_conflict="source,item_code"
+        ).execute()
+        print(f"✓ Inserted {len(products_data)} rows")
+    except Exception as e:
+        print(f"❌ Supabase error: {e}")
+        print(f"Response: {e.args}")  # This might show the actual SQL error
+        
+        # Try inserting one row to see specific error
+        if len(products_data) > 0:
+            try:
+                single = supabase.table("products").upsert([products_data[0]]).execute()
+            except Exception as single_error:
+                print(f"Single row error: {single_error}")
 
     # ── 2. Get product IDs to link price_history ─────────────────────────────
     item_codes = extracted["itemCode"].to_list()
