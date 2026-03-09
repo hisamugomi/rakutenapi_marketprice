@@ -8,7 +8,9 @@ import pytz
 from supabase import Client, create_client
 
 from src.extract_specs_1 import extract_specs
+from src.kakakucom_scrape import run_kakaku_scraper
 from src.pckoboscrape import run_pckoubou_scraper
+from src.pcwrapscrape import run_pcwrap_scraper
 from src.rakuten_api import fetch_rakuten_items
 from src.sofmapscrape import run_sofmap_scraper
 
@@ -181,6 +183,31 @@ def run_scraper() -> None:
                 pl.lit(None).cast(pl.Utf8).alias("model"),
             ])
             _upsert_batch(supabase, extracted, "pckoubou", now_jst)
+        except Exception as e:
+            print(f"  Error: {e}")
+
+    # ── PCwrap ────────────────────────────────────────────────────────────────
+    print("\n[pcwrap] Scraping...")
+    pcwrap_data = run_pcwrap_scraper()
+    if pcwrap_data:
+        try:
+            pcwrap_pl = pl.from_dicts(pcwrap_data)
+            _upsert_batch(supabase, pcwrap_pl, "pcwrap", now_jst)
+        except Exception as e:
+            print(f"  Error: {e}")
+
+    # ── Kakaku ────────────────────────────────────────────────────────────────
+    print("\n[kakaku] Scraping...")
+    kakaku_data = run_kakaku_scraper()
+    if kakaku_data:
+        try:
+            kakaku_pl = pl.from_dicts(kakaku_data).with_columns([
+                pl.col("search_query").alias("model"),
+                pl.col("ram").alias("memory"),
+                pl.col("storage").alias("ssd"),
+                pl.col("screen").str.replace("インチ", "").cast(pl.Float64, strict=False).alias("display_size"),
+            ])
+            _upsert_batch(supabase, kakaku_pl, "kakaku", now_jst)
         except Exception as e:
             print(f"  Error: {e}")
 
