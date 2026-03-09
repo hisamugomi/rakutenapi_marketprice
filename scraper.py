@@ -72,6 +72,9 @@ def _upsert_batch(
         .with_columns(pl.lit(now_jst).alias("last_seen_at"))
     )
 
+    # Deduplicate on item_code — same product may appear in multiple search queries
+    products_df = products_df.unique(subset=["item_code"], keep="first")
+
     available_cols = [c for c in _PRODUCT_COLS if c in products_df.columns]
     products_data = products_df.select(available_cols).to_dicts()
 
