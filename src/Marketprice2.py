@@ -1,11 +1,12 @@
-import streamlit as st
-import polars as pl
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
-from scipy import stats
-from supabase import create_client, Client
 from datetime import datetime, timedelta, timezone
+
+import numpy as np
+import plotly.graph_objects as go
+import polars as pl
+import streamlit as st
+from plotly.subplots import make_subplots
+from scipy import stats
+from supabase import Client, create_client
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -233,15 +234,15 @@ ACCENT_COLORS = {
 
 MODEL_QUERY_MAP = {
     # Lenovo
-    "Lenovo L390": "L390 -lenovo",
-    "Lenovo L580": "L580 -lenovo",
-    "Lenovo L590": "L590 -lenovo",
+    "Lenovo L390": "L390",
+    "Lenovo L580": "L580",
+    "Lenovo L590": "L590",
     # Dell Latitude
-    "Dell Latitude 5300": "Latitude 5300 -dell",
-    "Dell Latitude 5400": "Latitude 5400 -dell",
-    "Dell Latitude 5490": "Latitude 5490 -dell",
-    "Dell Latitude 5500": "Latitude 5500 -dell",
-    "Dell Latitude 5590": "Latitude 5590 -dell",
+    "Dell Latitude 5300": "Latitude 5300",
+    "Dell Latitude 5400": "Latitude 5400",
+    "Dell Latitude 5490": "Latitude 5490",
+    "Dell Latitude 5500": "Latitude 5500",
+    "Dell Latitude 5590": "Latitude 5590",
 }
 
 SOURCE_COLORS = {
@@ -602,9 +603,7 @@ def render_listings_table(df: pl.DataFrame):
         )
     )
 
-    st.dataframe(df)
-
-    # st.markdown(table_html, unsafe_allow_html=True)
+    st.dataframe(display)
 
 
 def render_all_models_trend(df: pl.DataFrame):
@@ -715,7 +714,7 @@ filtered_df = raw_df.filter(
 )
 
 if active_only:
-    filtered_df = filtered_df.filter(pl.col("is_active") == True)
+    filtered_df = filtered_df.filter(pl.col("is_active"))
 
 # Source filter
 if selected_sources:
@@ -741,7 +740,7 @@ for model in selected_models:
     model_df = filtered_df.filter(pl.col("search_query") == MODEL_QUERY_MAP[model])
 
     # Model header
-    st.markdown(f'<div class="model-header">Model</div>', unsafe_allow_html=True)
+    st.markdown('<div class="model-header">Model</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="model-title">{model}</div>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="model-subtitle">'

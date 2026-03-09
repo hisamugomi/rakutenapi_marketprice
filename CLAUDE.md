@@ -20,18 +20,27 @@ Python 3.12+ project. We scrape used computer prices from Japanese marketplaces 
 uv sync                          # Install/sync all dependencies
 uv run python -m pytest tests/   # Run all tests
 uv run pytest tests/test_X.py -x # Run single test file, stop on first failure
-uv run ruff check src/           # Lint
-uv run ruff format src/          # Format
+uv run ruff check src/ tests/    # Lint (find issues)
+uv run ruff format src/ tests/   # Format (auto-fix style)
 uv run streamlit run src/dashboard/app.py  # Launch dashboard
 
-# Scrapers
-uv run python -m src.scrapers.rakuten   # Run Rakuten scraper
-uv run python -m src.scrapers.pckoubo   # Run PC Koubou scraper
+# Scrapers (production pipeline)
+uv run scraper.py                # Run full scraper pipeline (all sources)
 
 # ML pipeline
 uv run python -m src.models.train       # Train pricing model
 uv run python -m src.pipeline.score     # Score new products
 ```
+
+## Slash Commands
+
+| Command | What it does |
+|---|---|
+| `/run-tests [path]` | Run pytest with `-x --tb=short -v`. Defaults to `tests/`. |
+| `/lint` | `ruff check` + `ruff format` over `src/` and `tests/`. |
+| `/gh-status` | Show last 5 GitHub Actions runs; print failure logs if any failed. |
+| `/save-context` | Save session state snapshot to `.claude/context/latest.md`. |
+| `/load-context` | Load the most recent context snapshot to restore session state. |
 
 ## Project Structure
 
@@ -46,7 +55,9 @@ pc-price-finder/
 │   ├── commands/
 │   │   ├── save-context.md       # /save-context slash command
 │   │   ├── load-context.md       # /load-context slash command
-│   │   └── status.md             # /status slash command
+│   │   ├── run-tests.md          # /run-tests slash command
+│   │   ├── lint.md               # /lint slash command
+│   │   └── gh-status.md          # /gh-status slash command
 │   └── rules/
 │       └── polars-only.md        # Enforce Polars over pandas
 ├── src/
