@@ -605,8 +605,76 @@ def render_listings_table(df: pl.DataFrame):
 
     st.dataframe(display)
 
-
 def render_all_models_trend(df: pl.DataFrame):
+    """One median price line per model on a shared time axis."""
+    fig = go.Figure()
+    
+ACCENT_COLORS = {
+    # Lenovo
+    "Lenovo L390": "#4fc3f7",
+    "Lenovo L580": "#81c784",
+    "Lenovo L590": "#ffb74d",
+    # Dell Latitude
+    "Dell Latitude 5300": "#ef9a9a",
+    "Dell Latitude 5400": "#f48fb1",
+    "Dell Latitude 5490": "#ce93d8",
+    "Dell Latitude 5500": "#80cbc4",
+    "Dell Latitude 5590": "#bcaaa4",
+}
+
+MODEL_QUERY_MAP = {
+    # Lenovo
+    "Lenovo L390": "L390",
+    "Lenovo L580": "L580",
+    "Lenovo L590": "L590",
+    # Dell Latitude
+    "Dell Latitude 5300": "Latitude 5300",
+    "Dell Latitude 5400": "Latitude 5400",
+    "Dell Latitude 5490": "Latitude 5490",
+    "Dell Latitude 5500": "Latitude 5500",
+    "Dell Latitude 5590": "Latitude 5590",
+}
+
+    for model, query in MODEL_QUERY_MAP.items():
+        color = ACCENT_COLORS[model]
+        model_df = df.filter(pl.col("search_query") == query)
+        if model_df.is_empty():
+            continue
+
+        trend = (
+            model_df.with_columns(pl.col("scraped_at").dt.date().alias("run_date"))
+            .group_by("run_date")
+            .agg(pl.col("itemPrice").median().alias("median_price"))
+            .sort("run_date")
+            .drop_nulls("median_price")
+        )
+        if trend.is_empty():
+            continue
+
+        fig.add_trace(go.Scatter(
+            x=trend["run_date"].to_list(),
+            y=trend["median_price"].to_list(),
+            name=model,
+            mode="lines+markers",
+            line=dict(color=color, width=3),
+            marker=dict(size=4, color=color),
+        ))
+
+    fig.update_layout(
+        **PLOTLY_LAYOUT,
+        height=420,
+        hovermode="x unified",
+        showlegend=True,
+        legend=dict(orientation="h", x=0, y=1.12, font=dict(size=10),
+                    bgcolor="rgba(0,0,0,0)"),
+    )
+    fig.update_yaxes(tickprefix="¥", tickformat=",", title_text="Median Price 中央価格(¥)",
+                     gridcolor="#b5b5b5", linecolor="#2a2a2a")
+    fig.update_xaxes(tickformat="%b %d", tickangle=-30)
+
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+def render_all_models_trend1(df: pl.DataFrame):
     """One median price line per model on a shared time axis."""
     fig = go.Figure()
 
