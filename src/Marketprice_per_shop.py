@@ -1008,7 +1008,7 @@ if not selected_models:
 
 for model in selected_models:
     color = ACCENT_COLORS[model]
-    model_df = filtered_df.filter((pl.col("model") == MODEL_QUERY_MAP[model]) & (pl.col("scraped_at").dt.date() >= datetime.date(2026, 3, 4))) 
+    model_df = filtered_df.filter((pl.col("search_query") == MODEL_QUERY_MAP[model]) & (pl.col("scraped_at").dt.date() >= datetime(2026, 3, 4).dt.date)) 
 
     # Model header
     st.markdown('<div class="model-header">Model</div>', unsafe_allow_html=True)
