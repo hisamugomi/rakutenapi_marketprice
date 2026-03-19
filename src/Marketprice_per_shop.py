@@ -608,32 +608,32 @@ def render_listings_table(df: pl.DataFrame):
 def render_all_models_trend(df: pl.DataFrame):
     """One median price line per model on a shared time axis."""
     fig = go.Figure()
+        
+    ACCENT_COLORS = {
+        # Lenovo
+        "Lenovo L390": "#4fc3f7",
+        "Lenovo L580": "#81c784",
+        "Lenovo L590": "#ffb74d",
+        # Dell Latitude
+        "Dell Latitude 5300": "#ef9a9a",
+        "Dell Latitude 5400": "#f48fb1",
+        "Dell Latitude 5490": "#ce93d8",
+        "Dell Latitude 5500": "#80cbc4",
+        "Dell Latitude 5590": "#bcaaa4",
+    }
     
-ACCENT_COLORS = {
-    # Lenovo
-    "Lenovo L390": "#4fc3f7",
-    "Lenovo L580": "#81c784",
-    "Lenovo L590": "#ffb74d",
-    # Dell Latitude
-    "Dell Latitude 5300": "#ef9a9a",
-    "Dell Latitude 5400": "#f48fb1",
-    "Dell Latitude 5490": "#ce93d8",
-    "Dell Latitude 5500": "#80cbc4",
-    "Dell Latitude 5590": "#bcaaa4",
-}
-
-MODEL_QUERY_MAP = {
-    # Lenovo
-    "Lenovo L390": "L390",
-    "Lenovo L580": "L580",
-    "Lenovo L590": "L590",
-    # Dell Latitude
-    "Dell Latitude 5300": "Latitude 5300",
-    "Dell Latitude 5400": "Latitude 5400",
-    "Dell Latitude 5490": "Latitude 5490",
-    "Dell Latitude 5500": "Latitude 5500",
-    "Dell Latitude 5590": "Latitude 5590",
-}
+    MODEL_QUERY_MAP = {
+        # Lenovo
+        "Lenovo L390": "L390",
+        "Lenovo L580": "L580",
+        "Lenovo L590": "L590",
+        # Dell Latitude
+        "Dell Latitude 5300": "Latitude 5300",
+        "Dell Latitude 5400": "Latitude 5400",
+        "Dell Latitude 5490": "Latitude 5490",
+        "Dell Latitude 5500": "Latitude 5500",
+        "Dell Latitude 5590": "Latitude 5590",
+    }
 
     for model, query in MODEL_QUERY_MAP.items():
         color = ACCENT_COLORS[model]
