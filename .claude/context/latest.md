@@ -1,95 +1,82 @@
 # Context Snapshot
-**Saved:** 2026-02-26 (current session)
-**Phase:** Phase 2 — ML Pipeline + Scraper Quality
-**Branch:** feature/polars-cleanup
+**Saved:** 2026-03-09
+**Phase:** Scraper development — all scrapers integrated, dedup bug fixed
+**Branch:** main
 
 ## What Was Accomplished
-### This session
-- Created `src/scrapers/__init__.py` + `src/scrapers/rakuten_filter.py`
-  - `filter_rakuten_computers(df)` — two-layer noise filter (genre + keyword)
-  - Constants: `COMPUTER_GENRE_IDS`, `NOISE_GENRE_IDS`, `NOISE_KEYWORDS`, `COMPUTER_KEYWORDS`
-  - `is_uncertain` column flags mixed-signal rows (both computer + noise kw in unknown genre)
-  - stdlib `logging` at INFO with per-run stats
-- Created `tests/test_scrapers/test_rakuten_filter.py` — 22 tests all passing (TDD)
-- Created `docs/rakuten_filter.md` — usage, extension guide, integration points
-- All 27 tests pass, lint clean
-
-### Prior sessions
-- Implemented and committed full LightGBM ML pricing pipeline
-- Added deps: `lightgbm>=4.3.0`, `scikit-learn>=1.4.0`, `numpy>=1.26.0` (via `uv add`)
-- Created `src/models/price_model.py`, `evaluation.py`, `train.py`
-- Created `src/pipeline/score.py` — batch scoring entry point
-- All previous tests still passing
+- Added 10 integration tests to `tests/test_scrapers/test_kakaku_scraper.py` — 35 total, all passing
+- Created `src/pcwrapscrape.py`: moved from root, refactored with separated pure parser (`parse_pcwrap_listings` + BeautifulSoup), aligned fields to `_PRODUCT_COLS` (`memory`, `ssd`, `hdd`, `display_size`, `shopName`, `model`)
+- Created `tests/test_scrapers/test_pcwrap_scraper.py` — 37 tests, all passing including live scrape
+- Wired `run_pcwrap_scraper` and `run_kakaku_scraper` into `scraper.py`
+- Added `beautifulsoup4` to `.github/workflows/scraper.yaml`
+- Created `SCRAPER_GUIDE.md` — authoring manual for new scrapers
+- Fixed `ON CONFLICT DO UPDATE command cannot affect row a second time` (error code 21000):
+  - Root cause: same `itemCode` appearing multiple times in one batch (e.g. Kakaku returns same product under multiple search queries; Sofmap uses JAN barcodes as `itemCode` shared by multiple listings)
+  - Fix: added `.unique(subset=["item_code"], keep="first")` in `_upsert_batch` before the upsert call
+  - Committed as `781063a`, pushed to `origin/main`
+- All committed and pushed (latest: `781063a`)
 
 ## Current State
-- **Working on:** Nothing in progress — session complete, uncommitted
+- **Working on:** Nothing — session complete
 - **Blocked by:** None
-- **Files modified:** src/scrapers/__init__.py, src/scrapers/rakuten_filter.py, tests/test_scrapers/test_rakuten_filter.py, docs/rakuten_filter.md (all new, not yet committed)
-- **Tests status:** 27/27 passing (3 harmless sklearn UserWarnings)
-- **Lint status:** Clean
+- **Files modified this session:**
+  - `scraper.py` — pcwrap/kakaku integrated, dedup fix added (committed)
+  - `src/pcwrapscrape.py` — new (committed)
+  - `src/kakakucom_scrape.py` — new (committed)
+  - `tests/test_scrapers/test_pcwrap_scraper.py` — new (committed)
+  - `tests/test_scrapers/test_kakaku_scraper.py` — new (committed)
+  - `.github/workflows/scraper.yaml` — beautifulsoup4 added (committed)
+  - `SCRAPER_GUIDE.md` — new (committed)
+- **Tests status:** 35/35 kakaku, 37/37 pcwrap — all passing
+- **GitHub Actions:** Next run will have the dedup fix
 
 ## Key Decisions Made
-- sklearn Pipeline: `_FeatureParser → _CatEncoder → LGBMRegressor` — prevents data leakage, enables cross_val_score, single joblib artifact
-- Native Polars expressions in `_parse_raw_features()` — no `map_elements` UDFs (caused Float32/Float64 conflicts)
-- All-null columns handled by `.cast(pl.Utf8)` before string ops (Polars infers Null dtype for all-null lists)
-- Categorical encoding: `_CatEncoder` label-encodes brand/os_clean/source to sorted int codes; OOV bucket at predict time
-- Training data: query products + price_history separately, join in Polars (supabase-py has no raw SQL JOIN)
-- User confirmed: pandas acceptable at library boundaries (sklearn/numpy), not strictly Polars-only everywhere
+- Dedup is done in `_upsert_batch` on `["item_code"]` — covers all scrapers universally
+- Price history uses `extracted` (pre-dedup) — all price observations still recorded even for duplicate-code items
+- Sofmap JAN codes (`new_jan=` URLs) are intentionally kept as `itemCode`; the dedup consolidates them per run
+- Kakaku maps: `ram→memory`, `storage→ssd`, `screen→display_size` (strips "インチ"), `search_query→model`
+- PCwrap fields pre-aligned in scraper — no `with_columns` needed in `scraper.py`
+- Streamlit Cloud reads `requirements.txt` from repo root (separate from `pyproject.toml`)
 
 ## Next Steps (Priority Order)
-1. Commit: `feat: add rakuten_filter two-layer computer noise filter`
-2. Wire `filter_rakuten_computers()` into `src/rakuten_api.py` (separate follow-up per plan)
-3. Run actual training: `uv run python -m src.models.train` (needs .env / Streamlit secrets)
-4. Run batch scoring: `uv run python -m src.pipeline.score` (needs trained model)
-5. Optuna hyperparameter tuning — `src/models/optimizer.py`
-6. Survival model — `src/models/survival_model.py` (time-to-sale)
-7. Merge feature/polars-cleanup → main
+1. Verify next GitHub Actions run completes without the 21000 error
+2. Delete old `pcwrapscrape.py` from repo root (replaced by `src/pcwrapscrape.py`)
+3. Address `tests/test_features/test_model_extractor.py` — imports `src.features.model_extractor` which doesn't exist; will crash pytest with `-x`
+4. Consider updating `requirements.txt` for Streamlit Cloud dashboard deps
+5. Begin ML pipeline phase (LightGBM price model, survival model)
 
 ## Open Questions
-- Optuna or survival model next?
-- When to merge to main?
-- Drop `rakuten_table` (backup, 2179 rows)?
-- Integrate `src/sofmapscrape.py`?
+- Did the GitHub Actions workflow pass cleanly with the dedup fix?
+- Should `rank` (condition grade from kakaku) be added to the DB schema?
+- `src/sofmapscrape_copy.py` is untracked — probably safe to delete
 
 ## Important Notes
-- `.streamlit/secrets.toml` and `.env` — NEVER read, edit, or open
-- Always `uv add`, never `pip install`; always `uv run`
+- `scraper.py` pipeline order: Rakuten → PCKoubou → PCwrap → Kakaku → Sofmap
+- `_upsert_batch` rename map: `itemCode→item_code`, `itemName→item_name`, `itemUrl→item_url`, `shopName→shop_name`
+- `_PRODUCT_COLS`: `item_code, source, item_name, item_url, shop_name, search_query, brand, model, cpu, cpu_gen, memory, ssd, hdd, os, display_size, weight, bluetooth, webcam, usb_ports, is_active, last_seen_at`
+- `price_history` columns: `product_id`, `item_code`, `source`, `price`, `scraped_at`, `search_query`
 - `price_history` column is `scraped_at` (NOT `observed_at`)
-- `cpu_gen` is TEXT in products table (e.g. "8", "10")
-- `/models/` (top-level) gitignored for artifacts; `src/models/` is NOT ignored
-- Do NOT merge to main yet
+- Dedup happens on `item_code` only (all rows in a batch share the same `source`)
+- Never touch `.env` or `secrets.toml`
+- Always use Polars, never pandas
+- `bs4` installed, `selectolax` NOT installed
 
 ## File Map
 ```
-src/scrapers/__init__.py                      — package marker (new)
-src/scrapers/rakuten_filter.py                — filter_rakuten_computers() (new)
-tests/test_scrapers/test_rakuten_filter.py    — 22 tests, all passing (new)
-docs/rakuten_filter.md                        — usage + extension guide (new)
-src/models/price_model.py                     — LightGBMPriceModel (sklearn Pipeline)
-src/models/evaluation.py                      — mae/rmse/mape/r2/report
-src/models/train.py                           — training entry point
-src/pipeline/score.py                         — batch scoring entry point
-tests/test_models/test_price_model.py         — 5 unit tests (all passing)
-```
-
-## DB State
-- products: 788 rows (721 pckoubou + 67 rakuten)
-- price_history: growing (scraped_at column)
-- price_predictions: empty (populated after first score.py run)
-- listings_view: products JOIN price_history for dashboard
-
-## Products Table Schema (actual)
-```
-id, item_code, source, item_name, item_url, shop_name, search_query,
-brand, model, cpu, cpu_gen, memory, ssd, hdd, os, display_size, weight,
-bluetooth, webcam, usb_ports, is_active, first_seen_at, last_seen_at
+src/kakakucom_scrape.py              — kakaku scraper + parser (committed)
+src/pcwrapscrape.py                  — pcwrap scraper + parser (committed)
+pcwrapscrape.py                      — OLD root file, not yet deleted
+tests/test_scrapers/test_kakaku_scraper.py   — 35 tests (committed)
+tests/test_scrapers/test_pcwrap_scraper.py   — 37 tests (committed)
+tests/test_scrapers/test_scraper.py          — 20 tests rakuten/pckoubou/sofmap (committed)
+scraper.py                           — main pipeline, all 5 scrapers + dedup fix (committed)
+.github/workflows/scraper.yaml       — beautifulsoup4 added (committed)
+SCRAPER_GUIDE.md                     — scraper authoring manual (committed)
 ```
 
 ## Git Log (recent)
 ```
-36e8d72 feat: implement LightGBM price model with sklearn Pipeline
-edd981a feat: add ML pipeline deps and scaffold (lightgbm, sklearn, score.py)
-4780a1a fix: improve pckoubou memory extraction coverage 24% → 88%
-20e89cf fix: handle missing itemUrl in pckoubou upsert rename
-266c5cb refactor: delete dead legacy files, fix lint, add tests scaffold and dev tooling
+781063a fix: deduplicate item_code before upsert to avoid ON CONFLICT row conflict
+5299383 feat: add kakaku + pcwrap scrapers, integrate into pipeline  (note: may show as c4d59f2 depending on ref)
+b0d2cc6 Add PCWrap laptop scraper
 ```

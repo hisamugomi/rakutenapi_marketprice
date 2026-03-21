@@ -690,7 +690,8 @@ def render_all_models_trend1(df: pl.DataFrame):
 
         trend = (
             model_df.with_columns(pl.col("scraped_at").dt.date().alias("run_date"))
-            .group_by("run_date")            .agg(pl.col("itemPrice").median().alias("median_price"))
+            .group_by("run_date")
+            .agg(pl.col("itemPrice").median().alias("median_price"))
             .sort("run_date")
             .drop_nulls("median_price")
         )
@@ -1008,6 +1009,7 @@ if not selected_models:
 
 for model in selected_models:
     color = ACCENT_COLORS[model]
+    model_df = filtered_df.filter(pl.col("search_query") == MODEL_QUERY_MAP[model])
     model_df = filtered_df.filter((pl.col("search_query") == MODEL_QUERY_MAP[model])) #& (pl.col("scraped_at").dt.date() >= datetime(2026, 3, 4).dt.date)) 
 
     # Model header

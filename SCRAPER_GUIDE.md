@@ -306,3 +306,173 @@ def test_live_scrape_returns_items():
 | Shop name has `（店頭販売有）` suffix | `shop_raw.split("（")[0].strip()` |
 | Playwright browser not installed in CI | Add `uv run playwright install chromium --with-deps` to `scraper.yaml` |
 | `bs4` vs `selectolax` | `bs4` is installed; `selectolax` is NOT — use `BeautifulSoup(html, "html.parser")` |
+
+---
+
+## 8. Best practices
+
+### Prefer simple string splitting over regex
+
+Japanese used-PC sites follow predictable title formats. Split on delimiters first; only reach for regex if splitting genuinely can't handle it.
+
+**Example — Sofmap used titles:**
+```
+ideapad S540 ［Core-i5-10210U (1.6GHz)／8GB／SSD256GB／14インチワイド／Windows11 Pro MAR］
+```
+
+Parse with splits, not regex:
+```python
+# 1. Extract bracket content
+start, end = title.find("［"), title.find("］")
+parts = title[start+1:end].split("／")   # fullwidth slash ／
+
+# 2. Classify each part by simple keyword checks
+for part in parts:
+    p = part.strip()
+    if p.startswith(("Core", "Ryzen", "Celeron")):
+        specs["cpu"] = p.split("(")[0].strip()       # drop "(1.6GHz)"
+    elif p.endswith("GB") and p[:-2].isdigit():
+        specs["memory"] = p                           # "8GB"
+    elif p.startswith("SSD"):
+        specs["ssd"] = p.replace("SSD", "").strip()   # "256GB"
+    elif p.startswith("HDD"):
+        specs["hdd"] = p.replace("HDD", "").strip()
+    elif "インチ" in p:
+        specs["display_size"] = float(p.replace("インチワイド", "").replace("インチ", ""))
+    elif any(kw in p for kw in ("Windows", "Linux", "macOS")):
+        specs["os"] = p
+```
+
+**Why this is better than regex:**
+- Easier to read and debug — each `elif` is one field
+- Delimiter-based splitting matches how the data is actually structured
+- No risk of catastrophic backtracking or subtle regex bugs
+- Adding a new field = adding one `elif` branch
+
+### Always get sample HTML first
+
+**Before writing any parsing code**, fetch and save a real HTML page from the target site. This is the very first step for any new scraper.
+
+```python
+# Quick one-off to grab sample HTML (run in terminal, not in the scraper itself)
+uv run python -c "
+import asyncio
+from playwright.async_api import async_playwright
+
+async def fetch():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+        await page.goto('https://example.com/search', timeout=60000)
+        await page.wait_for_selector('div.product-list', timeout=15000)  # wait for JS
+        html = await page.content()
+        await browser.close()
+        with open('/tmp/sitename_sample.html', 'w') as f:
+            f.write(html)
+        print(f'Saved {len(html)} chars')
+
+asyncio.run(fetch())
+"
+```
+
+Then inspect it to understand the HTML structure before writing selectors:
+```python
+uv run python -c "
+from bs4 import BeautifulSoup
+with open('/tmp/sitename_sample.html') as f:
+    soup = BeautifulSoup(f.read(), 'html.parser')
+items = soup.select('div.product')  # try different selectors
+print(f'Found {len(items)} items')
+for i, item in enumerate(items[:3]):
+    print(f'--- Item {i} ---')
+    print(str(item)[:500])
+"
+```
+
+**Why this matters:**
+- You see the real DOM, not what the docs say it should be
+- JS-rendered sites often have different structure than view-source shows
+- You can pick 3–5 representative items for `SAMPLE_HTML` from real data
+- Saves time vs. guessing selectors and debugging why they don't match
+
+### Separate parser from fetcher
+
+Every scraper module should have two clear layers:
+
+1. **`parse_*_listings(html, search_query) -> list[dict]`** — pure function, no I/O, no browser. Takes raw HTML string, returns structured data. This is what tests exercise.
+2. **`scrape_*_page(url) -> str`** — async Playwright fetcher that returns raw HTML. Thin wrapper.
+
+This separation means:
+- 95% of tests run instantly against `SAMPLE_HTML` (no browser needed)
+- The parser is reusable if you switch from Playwright to httpx later
+- Debugging is easier — you can save HTML to a file and re-parse it
+
+### Embed SAMPLE_HTML in the scraper module
+
+Put a `SAMPLE_HTML` constant directly in the scraper `.py` file (not in a separate fixture file). Keep it small — 3–5 representative items covering the main variations:
+- A typical item with all fields
+- An item with HDD instead of SSD (or other storage variant)
+- An aggregated/bundle item if the site has them
+- An edge case (missing field, unusual brand)
+
+Tests import `SAMPLE_HTML` from the scraper module, so the test data lives next to the parsing code it tests.
+
+### Brand name cleaning
+
+Japanese sites append the Japanese company name in parentheses. Always strip it and normalize:
+
+```python
+_BRAND_MAP = {
+    "lenovo":   "Lenovo",
+    "fujitsu":  "Fujitsu",
+    "hp":       "HP",
+    "dell":     "Dell",
+    "nec":      "NEC",
+    "vaio":     "VAIO",
+    "panasonic":"Panasonic",
+    "toshiba":  "Toshiba",
+    "dynabook": "Dynabook",
+}
+
+def _clean_brand(raw: str) -> str:
+    base = raw.split("(")[0].split("（")[0].strip()   # strip Japanese parens too
+    return _BRAND_MAP.get(base.lower(), base)
+```
+
+Map `その他メーカー` ("other manufacturer") to `""` — it carries no useful brand info.
+
+### Handle multiple listing types
+
+Some sites mix individual items and aggregated/bundle listings on the same page. Check for both:
+- **Individual items:** ID from URL path (e.g. `/r/item/2133072435673`)
+- **Aggregated items:** ID from URL query param (e.g. `?jan=2000453972020`)
+- Aggregated items typically lack per-item fields like `condition` — set those to `None`
+
+### Price cleaning
+
+Always strip currency symbols AND fullwidth variants before `int()`:
+```python
+price_text = raw.replace("¥", "").replace("￥", "").replace(",", "").replace("（税込）", "").strip()
+item_price = int(price_text) if price_text.isdigit() else None
+```
+
+### Anti-detection for Playwright scrapers
+
+For JS-rendered sites that check for bots:
+- Rotate user agents from a small list (3–4 real browser strings)
+- Randomize viewport dimensions slightly
+- Set `locale="ja-JP"` and `timezone_id="Asia/Tokyo"`
+- Patch `navigator.webdriver` to `undefined`
+- Add small random delays between pages (`random.uniform(2.0, 5.0)`)
+- Use `--no-sandbox` and `--disable-blink-features=AutomationControlled` launch args
+
+### Deduplication
+
+`_upsert_batch` in scraper.py uses `(source, item_code)` as the conflict key. If the same `itemCode` appears multiple times in one scrape run (e.g. from overlapping search queries), deduplicate before upserting:
+```python
+products_df = products_df.unique(subset=["item_code"], keep="first")
+```
+
+### robots.txt compliance
+
+Before writing a new scraper, check the target site's `robots.txt`. If the paths you're scraping are disallowed, reconsider or contact the site owner. Document the check in your PR description.

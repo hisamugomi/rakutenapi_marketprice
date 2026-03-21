@@ -12,7 +12,17 @@ from src.kakakucom_scrape import run_kakaku_scraper
 from src.pckoboscrape import run_pckoubou_scraper
 from src.pcwrapscrape import run_pcwrap_scraper
 from src.rakuten_api import fetch_rakuten_items
+from src.pcbaruscrape import run_pcbaru_scraper
+from src.qualitscrape import run_qualit_scraper
 from src.sofmapscrape import run_sofmap_scraper
+from src.sofmapscrape_used import run_sofmap_used_scraper
+
+#Rakuten
+#PCKOUBOU
+#SOFMAP 1
+#SOFMAP 2
+#Qualit
+#
 
 QUERIES = [
     "L580",
@@ -230,6 +240,37 @@ def run_scraper() -> None:
             )
             extracted = extracted.with_columns(pl.lit("sofmap").alias("source"))
             _upsert_batch(supabase, extracted, "sofmap", now_jst)
+        except Exception as e:
+            print(f"  Error: {e}")
+
+
+    # ── Sofmap Used (used.sofmap.com) ───────────────────────────────────────────
+    print("\n[sofmap_used] Scraping...")
+    sofmap_used_data = run_sofmap_used_scraper()
+    if sofmap_used_data:
+        try:
+            sofmap_used_pl = pl.from_dicts(sofmap_used_data)
+            _upsert_batch(supabase, sofmap_used_pl, "sofmap_used", now_jst)
+        except Exception as e:
+            print(f"  Error: {e}")
+
+    # ── Qualit ──────────────────────────────────────────────────────────────────
+    print("\n[qualit] Scraping...")
+    qualit_data = run_qualit_scraper()
+    if qualit_data:
+        try:
+            qualit_pl = pl.from_dicts(qualit_data)
+            _upsert_batch(supabase, qualit_pl, "qualit", now_jst)
+        except Exception as e:
+            print(f"  Error: {e}")
+
+    # ── PCバル (smaphodock24.jp) ───────────────────────────────────────────────
+    print("\n[pcbaru] Scraping...")
+    pcbaru_data = run_pcbaru_scraper()
+    if pcbaru_data:
+        try:
+            pcbaru_pl = pl.from_dicts(pcbaru_data)
+            _upsert_batch(supabase, pcbaru_pl, "pcbaru", now_jst)
         except Exception as e:
             print(f"  Error: {e}")
 

@@ -8,6 +8,70 @@ from playwright.async_api import async_playwright
 
 JST = timezone(timedelta(hours=9))
 
+SAMPLE_HTML = """
+<div class="mainbox">
+<a class="itemimg" href="https://www.sofmap.com/product_detail.aspx?sku=414477263">
+<img alt="" class="ic usedrank" src="https://www.sofmap.com/images/static/img/ic_usedrank_B.svg"/>
+<img alt="" decoding="async" loading="lazy" src="https://image.sofmap.com/images/product/large/2133067933344_1.jpg"/>
+</a>
+<div class="icon-box"><i class="ic item-type used">中古商品</i></div>
+<span class="brand">MSI(エムエスアイ)</span>
+<span class="brand brand_type_list" style="display:none;">MSI(エムエスアイ)</span>
+<a class="product_name" href="https://www.sofmap.com/product_detail.aspx?sku=414477263">〔中古品〕 Prestige 16 Prestige-16-AI-Studio-B1VGG-1903JP ステラグレイ ［Core-Ultra-9-185H／32GB／SSD1TB／16インチ／Windows11 Pro］</a>
+<a class="product_name product_name_type_list" href="https://www.sofmap.com/product_detail.aspx?sku=414477263" style="display:none;">〔中古品〕 Prestige 16 Prestige-16-AI-Studio-B1VGG-1903JP ステラグレイ ［Core-Ultra-9-185H／32GB／SSD1TB／16インチ／Windows11 Pro］</a>
+<div class="item_label"></div>
+<span class="price"><strong>¥259,980<i>(税込)</i></strong></span>
+<span class="point">12,999ポイントサービス </span>
+<dl class="used_link shop"><dt>取扱店舗</dt><dd><a href="https://www.sofmap.com/tenpo/?id=shops&amp;sid=ike_reuse"><img alt="" src="/images/static/img/ic_used_tempo.svg"/>池袋店</a></dd></dl>
+</div>
+
+<div class="mainbox">
+<a class="itemimg" href="/search_result.aspx?product_type=USED&amp;new_jan=4526541197468&amp;gid=001010110&amp;used_rank=0009+0003+0002+0001+0006+0004">
+<img alt="" decoding="async" loading="lazy" src="https://image.sofmap.com/images/product/large/2133072790222_1.jpg"/>
+</a>
+<div class="icon-box"><i class="ic item-type used">中古商品</i></div>
+<span class="brand">MSI(エムエスアイ)</span>
+<span class="brand brand_type_list" style="display:none;">MSI(エムエスアイ)</span>
+<a class="product_name" href="/search_result.aspx?product_type=USED&amp;new_jan=4526541197468&amp;gid=001010110&amp;used_rank=0009+0003+0002+0001+0006+0004">〔展示品〕 Cyborg 15 A12V Cyborg-15-A12UC-3050JP ブラック&amp;スケルトン ［Core-i5-12450H (2GHz)／16GB／SSD512GB／GeForce RTX 3050(4GB)／15.6インチワイド／Windows11 Home］</a>
+<a class="product_name product_name_type_list" href="/search_result.aspx?product_type=USED&amp;new_jan=4526541197468&amp;gid=001010110&amp;used_rank=0009+0003+0002+0001+0006+0004" style="display:none;">〔展示品〕 Cyborg 15 A12V Cyborg-15-A12UC-3050JP ブラック&amp;スケルトン ［Core-i5-12450H (2GHz)／16GB／SSD512GB／GeForce RTX 3050(4GB)／15.6インチワイド／Windows11 Home］</a>
+<div class="item_label"></div>
+<span class="price"><strong>¥109,980<i>(税込)～</i></strong></span>
+<div class="used_box txt"><a href="/search_result.aspx?product_type=USED&amp;new_jan=4526541197468">中古商品が計4点あります</a></div>
+<span class="point">5,499ポイントサービス </span>
+</div>
+
+<div class="mainbox">
+<a class="itemimg" href="/search_result.aspx?product_type=USED&amp;new_jan=4573661272636&amp;gid=001010110&amp;used_rank=0009+0003+0002+0001+0006+0004">
+<img alt="" decoding="async" loading="lazy" src="https://image.sofmap.com/images/product/large/2133071221710_1.jpg"/>
+</a>
+<div class="icon-box"><i class="ic item-type used">中古商品</i></div>
+<span class="brand">DELL(デル)</span>
+<span class="brand brand_type_list" style="display:none;">DELL(デル)</span>
+<a class="product_name" href="/search_result.aspx?product_type=USED&amp;new_jan=4573661272636&amp;gid=001010110&amp;used_rank=0009+0003+0002+0001+0006+0004">〔展示品〕 Dell 15 DC15250 ND65-FWHBSC プラチナシルバー ［Core-i5-1334U (1.3GHz)／16GB／SSD512GB／15.6インチワイド／Windows11 Home］</a>
+<a class="product_name product_name_type_list" href="/search_result.aspx?product_type=USED&amp;new_jan=4573661272636&amp;gid=001010110&amp;used_rank=0009+0003+0002+0001+0006+0004" style="display:none;">〔展示品〕 Dell 15 DC15250 ND65-FWHBSC プラチナシルバー ［Core-i5-1334U (1.3GHz)／16GB／SSD512GB／15.6インチワイド／Windows11 Home］</a>
+<div class="item_label"></div>
+<span class="price"><strong>¥114,980<i>(税込)～</i></strong></span>
+<div class="used_box txt"><a href="/search_result.aspx?product_type=USED&amp;new_jan=4573661272636">中古商品が計6点あります</a></div>
+<span class="point">5,749ポイントサービス </span>
+</div>
+
+<div class="mainbox">
+<a class="itemimg" href="https://www.sofmap.com/product_detail.aspx?sku=414931730">
+<img alt="" class="ic usedrank" src="https://www.sofmap.com/images/static/img/ic_usedrank_B.svg"/>
+<img alt="" decoding="async" loading="lazy" src="https://image.sofmap.com/images/product/large/2133072805322_1.jpg"/>
+</a>
+<div class="icon-box"><i class="ic item-type used">中古商品</i></div>
+<span class="brand">GIGABYTE(ギガバイト)</span>
+<span class="brand brand_type_list" style="display:none;">GIGABYTE(ギガバイト)</span>
+<a class="product_name" href="https://www.sofmap.com/product_detail.aspx?sku=414931730">〔展示品〕 GAMING A16 CVHI3JP864S</a>
+<a class="product_name product_name_type_list" href="https://www.sofmap.com/product_detail.aspx?sku=414931730" style="display:none;">〔展示品〕 GAMING A16 CVHI3JP864S</a>
+<div class="item_label"></div>
+<span class="price"><strong>¥185,980<i>(税込)</i></strong></span>
+<span class="point">9,299ポイントサービス </span>
+<dl class="used_link shop"><dt>取扱店舗</dt><dd><a href="https://www.sofmap.com/tenpo/?id=shops&amp;sid=akiba_ekimae"><img alt="" src="/images/static/img/ic_used_tempo.svg"/>AKIBA 駅前館</a></dd></dl>
+</div>
+"""
+
 async def findmaxlisting(url: str) -> int:
     async with async_playwright() as p:
         browser = await p.chromium.launch()
