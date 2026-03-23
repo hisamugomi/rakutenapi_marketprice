@@ -33,7 +33,14 @@ QUERIES = [
     "Latitude 5490",
     "Latitude 5500",
     "Latitude 5590",
+    "Let's note SV7",
+    "Let's note LV7",
+    "Let's note SV8",
+    "Let's note LV8",
+    "Let's note SV9",
+    "Let's note SV9",
 ]
+
 
 # Columns that map to the products table
 _PRODUCT_COLS = [

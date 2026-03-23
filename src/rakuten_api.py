@@ -99,3 +99,53 @@ def fetch_rakuten_items(keyword: str, total_pages: int = 30) -> pl.DataFrame:
     print(f"[rakuten] Filtered {before - len(df)} non-computer items, {len(df)} remaining.")
 
     return df
+
+if __name__ == "__main__":
+    # Start with 5 pages for testing (500 items)
+    QUERIES = [
+        "L580",
+        "L590",
+        "L390",
+        "Latitude 5300",
+        "Latitude 5400",
+        "Latitude 5490",
+        "Latitude 5500",
+        "Latitude 5590",
+        "Let's note SV7",
+        "Let's note LV7",
+        "Let's note SV8",
+        "Let's note LV8",
+        "Let's note SV9",
+        "Let's note SV9",
+    ]
+
+    # Optionally save to CSV
+    import polars as pl
+    from extract_specs_1 import extract_specs
+    from datetime import datetime
+    import pytz
+    jst = pytz.timezone("Asia/Tokyo")
+    now_jst = datetime.now(jst).isoformat()
+    
+    for query in QUERIES:
+        print(f"\n[rakuten] {query}")
+        raw = fetch_rakuten_items(query, total_pages=6)
+        if raw.is_empty():
+            print("  No results.")
+            continue
+
+        raw = raw.with_columns([
+            (pl.col("itemName") + pl.col("itemCaption")).alias("combined"),
+            pl.lit(now_jst).alias("scraped_at"),
+            pl.lit(True).alias("is_active"),
+            pl.lit(query).alias("search_query"),
+        ])
+
+        extracted = extract_specs(raw, text_col="combined", price_col="itemPrice", name_col="itemName")
+        extracted = extracted.with_columns([
+            pl.lit("rakuten").alias("source"),
+            pl.lit(None).cast(pl.Utf8).alias("brand"),
+            pl.lit(query).cast(pl.Utf8).alias("model"),
+        ])
+        extracted.write_csv(f"data/rakuten_scraped{query}{now_jst}.csv")
+        print(f"Saved {len(extracted)} items to rakuten_scraped{query}{now_jst}.csv")
