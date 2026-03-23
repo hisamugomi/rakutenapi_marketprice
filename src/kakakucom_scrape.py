@@ -143,13 +143,12 @@ def run_kakaku_scraper() -> list[dict]:
             time.sleep(5)
         print(f"[kakaku] Scraping: {key}")
         try:
-            await page.wait_for_selector("table.tblUsed", timeout=15000)
-            # ... proceed with scraping ...
             results = asyncio.run(scrape_kakaku(key, url))
             print(f"[kakaku] {key}: {len(results)} items")
         except TimeoutError:
             print(f"No used items found for {key} or page failed to load.")
             results = None
+            
             
         all_results.extend(results)
     return all_results
