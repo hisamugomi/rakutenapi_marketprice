@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 
 JST = timezone(timedelta(hours=9))
 
@@ -267,7 +267,14 @@ async def scrape_sofmap_used_page(url: str) -> str:
         browser = await p.chromium.launch()
         page = await browser.new_page()
         await page.goto(url, timeout=60_000, wait_until="domcontentloaded")
-        await page.wait_for_selector("ul.sys-display-item", timeout=15_000)
+        try:
+            # Wait for list items inside the container, not the empty <ul> itself
+            await page.wait_for_selector("ul.sys-display-item li", timeout=15_000)
+        except PlaywrightTimeout:
+            print(f"[sofmap_used] Timeout: no items loaded for {url}")
+            html = await page.content()
+            await browser.close()
+            return html
         html = await page.content()
         await browser.close()
     return html
