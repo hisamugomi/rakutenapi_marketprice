@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 
 JST = timezone(timedelta(hours=9))
 
@@ -145,11 +145,9 @@ def run_kakaku_scraper() -> list[dict]:
         try:
             results = asyncio.run(scrape_kakaku(key, url))
             print(f"[kakaku] {key}: {len(results)} items")
-        except TimeoutError:
+        except (PlaywrightTimeout, TimeoutError):
             print(f"No used items found for {key} or page failed to load.")
-            results = None
-            
-            
+            results = []
         all_results.extend(results)
     return all_results
 
